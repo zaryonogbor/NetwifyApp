@@ -1,0 +1,420 @@
+import React, { useState } from 'react';
+import {
+    View,
+    Text,
+    StyleSheet,
+    ScrollView,
+    TouchableOpacity,
+    TextInput,
+    Alert,
+    Share,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../config/firebase';
+import { Card, Button } from '../../components/ui';
+import { colors, typography, spacing, borderRadius } from '../../theme';
+import { Contact } from '../../types';
+
+interface Props {
+    navigation: any;
+    route: { params: { contactId: string } };
+}
+
+type Tone = 'professional' | 'friendly' | 'casual';
+type Purpose = 'follow_up' | 'thank_you' | 'meeting_request' | 'custom';
+
+export const AIFollowUpScreen: React.FC<Props> = ({ navigation, route }) => {
+    const { contactId } = route.params;
+    const [contact, setContact] = useState<Contact | null>(null);
+    const [selectedTone, setSelectedTone] = useState<Tone>('professional');
+    const [selectedPurpose, setPurpose] = useState<Purpose>('follow_up');
+    const [generatedMessage, setGeneratedMessage] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
+
+    React.useEffect(() => {
+        fetchContact();
+    }, [contactId]);
+
+    const fetchContact = async () => {
+        try {
+            const contactDoc = await getDoc(doc(db, 'contacts', contactId));
+            if (contactDoc.exists()) {
+                setContact({ ...contactDoc.data(), id: contactDoc.id } as Contact);
+            }
+        } catch (error) {
+            console.error('Error fetching contact:', error);
+        }
+    };
+
+    const tones: { value: Tone; label: string; icon: string }[] = [
+        { value: 'professional', label: 'Professional', icon: 'briefcase' },
+        { value: 'friendly', label: 'Friendly', icon: 'smile' },
+        { value: 'casual', label: 'Casual', icon: 'coffee' },
+    ];
+
+    const purposes: { value: Purpose; label: string; description: string }[] = [
+        { value: 'follow_up', label: 'General Follow-up', description: 'Continue the conversation' },
+        { value: 'thank_you', label: 'Thank You', description: 'Express gratitude for meeting' },
+        { value: 'meeting_request', label: 'Meeting Request', description: 'Schedule a call or meeting' },
+        { value: 'custom', label: 'Custom', description: 'Write your own prompt' },
+    ];
+
+    const handleGenerate = async () => {
+        if (!contact) return;
+
+        setIsGenerating(true);
+        try {
+            // This would call a Firebase Cloud Function with Groq API
+            // For now, simulate with mock responses
+            await new Promise(resolve => setTimeout(resolve, 2000));
+
+            const templates: Record<Purpose, Record<Tone, string>> = {
+                follow_up: {
+                    professional: `Hi ${contact.displayName},\n\nIt was a pleasure meeting you at the event. I wanted to follow up on our conversation and explore potential opportunities for collaboration.\n\nI'd love to schedule a call to discuss further. Would you be available sometime this week?\n\nBest regards`,
+                    friendly: `Hey ${contact.displayName}!\n\nGreat meeting you! Really enjoyed our chat about ${contact.company || 'your work'}. Would love to grab coffee sometime and continue the conversation.\n\nLet me know when you're free!`,
+                    casual: `Hi ${contact.displayName}!\n\nJust wanted to say it was awesome meeting you. Let's definitely stay in touch!\n\nCheers`,
+                },
+                thank_you: {
+                    professional: `Dear ${contact.displayName},\n\nThank you for taking the time to connect with me. I truly appreciated learning about your work at ${contact.company || 'your organization'}.\n\nI look forward to staying in touch and exploring ways we might collaborate.\n\nBest regards`,
+                    friendly: `Hi ${contact.displayName}!\n\nThanks so much for the great conversation! Really inspired by what you're doing at ${contact.company || 'your company'}.\n\nLet's definitely keep in touch!`,
+                    casual: `Hey ${contact.displayName}!\n\nThanks for the chat - it was really fun meeting you!\n\nCatch you around!`,
+                },
+                meeting_request: {
+                    professional: `Hi ${contact.displayName},\n\nI hope this message finds you well. Following our recent conversation, I'd like to schedule a meeting to discuss potential collaboration opportunities.\n\nWould you be available for a 30-minute call this week? I'm flexible with timing.\n\nBest regards`,
+                    friendly: `Hey ${contact.displayName}!\n\nLoved our chat at the event. I think there's a lot we could explore together. How about we grab coffee or hop on a call soon?\n\nLet me know what works for you!`,
+                    casual: `Hi ${contact.displayName}!\n\nHad a great time chatting with you! Want to meet up sometime and continue the conversation?\n\nLet me know!`,
+                },
+                custom: {
+                    professional: `Hi ${contact.displayName},\n\n[Your message here]\n\nBest regards`,
+                    friendly: `Hey ${contact.displayName}!\n\n[Your message here]\n\nTalk soon!`,
+                    casual: `Hi ${contact.displayName}!\n\n[Your message here]\n\nCheers`,
+                },
+            };
+
+            setGeneratedMessage(templates[selectedPurpose][selectedTone]);
+            setIsEditing(true);
+        } catch (error) {
+            Alert.alert('Error', 'Failed to generate message. Please try again.');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
+
+    const handleShare = async () => {
+        if (!generatedMessage) return;
+
+        try {
+            await Share.share({
+                message: generatedMessage,
+                title: 'Share Follow-up Message',
+            });
+        } catch (error) {
+            console.error('Error sharing:', error);
+        }
+    };
+
+    const handleCopy = () => {
+        // In a real app, you'd use Clipboard API
+        Alert.alert('Copied!', 'Message copied to clipboard');
+    };
+
+    return (
+        <SafeAreaView style={styles.container} edges={['top']}>
+            {/* Header */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()}>
+                    <Feather name="arrow-left" size={24} color={colors.text.primary} />
+                </TouchableOpacity>
+                <View style={styles.headerCenter}>
+                    <View style={styles.aiLabel}>
+                        <Feather name="zap" size={14} color={colors.accent[600]} />
+                        <Text style={styles.aiLabelText}>AI Follow-up</Text>
+                    </View>
+                </View>
+                <View style={{ width: 24 }} />
+            </View>
+
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+            >
+                {contact && (
+                    <Text style={styles.contactContext}>
+                        Generating message for <Text style={styles.contactName}>{contact.displayName}</Text>
+                    </Text>
+                )}
+
+                {/* Purpose Selection */}
+                <Card style={styles.section}>
+                    <Text style={styles.sectionTitle}>Message Purpose</Text>
+                    <View style={styles.purposeGrid}>
+                        {purposes.map((purpose) => (
+                            <TouchableOpacity
+                                key={purpose.value}
+                                style={[
+                                    styles.purposeCard,
+                                    selectedPurpose === purpose.value && styles.purposeCardActive,
+                                ]}
+                                onPress={() => setPurpose(purpose.value)}
+                            >
+                                <Text style={[
+                                    styles.purposeLabel,
+                                    selectedPurpose === purpose.value && styles.purposeLabelActive,
+                                ]}>
+                                    {purpose.label}
+                                </Text>
+                                <Text style={styles.purposeDescription}>{purpose.description}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </Card>
+
+                {/* Tone Selection */}
+                <Card style={styles.section}>
+                    <Text style={styles.sectionTitle}>Tone</Text>
+                    <View style={styles.toneRow}>
+                        {tones.map((tone) => (
+                            <TouchableOpacity
+                                key={tone.value}
+                                style={[
+                                    styles.toneButton,
+                                    selectedTone === tone.value && styles.toneButtonActive,
+                                ]}
+                                onPress={() => setSelectedTone(tone.value)}
+                            >
+                                <Feather
+                                    name={tone.icon as any}
+                                    size={18}
+                                    color={selectedTone === tone.value ? colors.primary[600] : colors.text.secondary}
+                                />
+                                <Text style={[
+                                    styles.toneLabel,
+                                    selectedTone === tone.value && styles.toneLabelActive,
+                                ]}>
+                                    {tone.label}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                </Card>
+
+                {/* Generate Button */}
+                {!generatedMessage && (
+                    <Button
+                        title={isGenerating ? 'Generating...' : 'Generate Message'}
+                        onPress={handleGenerate}
+                        loading={isGenerating}
+                        fullWidth
+                        size="lg"
+                        icon={<Feather name="zap" size={18} color={colors.text.inverse} />}
+                    />
+                )}
+
+                {/* Generated Message */}
+                {generatedMessage && (
+                    <Card style={styles.messageCard}>
+                        <View style={styles.messageHeader}>
+                            <Text style={styles.messageTitle}>Your Message</Text>
+                            <TouchableOpacity onPress={() => setGeneratedMessage('')}>
+                                <Feather name="refresh-cw" size={18} color={colors.primary[600]} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <TextInput
+                            style={styles.messageInput}
+                            value={generatedMessage}
+                            onChangeText={setGeneratedMessage}
+                            multiline
+                            editable={isEditing}
+                        />
+
+                        <View style={styles.messageActions}>
+                            <Button
+                                title="Copy"
+                                onPress={handleCopy}
+                                variant="outline"
+                                size="sm"
+                                icon={<Feather name="copy" size={14} color={colors.primary[600]} />}
+                                style={{ flex: 1, marginRight: spacing.sm }}
+                            />
+                            <Button
+                                title="Share"
+                                onPress={handleShare}
+                                size="sm"
+                                icon={<Feather name="share-2" size={14} color={colors.text.inverse} />}
+                                style={{ flex: 1 }}
+                            />
+                        </View>
+                    </Card>
+                )}
+
+                {/* Disclaimer */}
+                <View style={styles.disclaimer}>
+                    <Feather name="info" size={14} color={colors.text.tertiary} />
+                    <Text style={styles.disclaimerText}>
+                        AI-generated content. Review and personalize before sending.
+                    </Text>
+                </View>
+            </ScrollView>
+        </SafeAreaView>
+    );
+};
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: colors.background.secondary,
+    },
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: spacing.xl,
+        paddingVertical: spacing.md,
+    },
+    headerCenter: {
+        alignItems: 'center',
+    },
+    aiLabel: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: colors.accent[50],
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.full,
+        gap: 4,
+    },
+    aiLabelText: {
+        fontSize: typography.fontSize.sm,
+        fontWeight: typography.fontWeight.semibold,
+        color: colors.accent[700],
+    },
+    scrollView: {
+        flex: 1,
+    },
+    scrollContent: {
+        paddingHorizontal: spacing.xl,
+        paddingBottom: spacing['3xl'],
+    },
+    contactContext: {
+        fontSize: typography.fontSize.base,
+        color: colors.text.secondary,
+        textAlign: 'center',
+        marginBottom: spacing.xl,
+    },
+    contactName: {
+        fontWeight: typography.fontWeight.semibold,
+        color: colors.text.primary,
+    },
+    section: {
+        marginBottom: spacing.lg,
+    },
+    sectionTitle: {
+        fontSize: typography.fontSize.base,
+        fontWeight: typography.fontWeight.semibold,
+        color: colors.text.primary,
+        marginBottom: spacing.md,
+    },
+    purposeGrid: {
+        gap: spacing.sm,
+    },
+    purposeCard: {
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1.5,
+        borderColor: colors.border.light,
+        backgroundColor: colors.background.primary,
+    },
+    purposeCardActive: {
+        borderColor: colors.primary[600],
+        backgroundColor: colors.primary[50],
+    },
+    purposeLabel: {
+        fontSize: typography.fontSize.base,
+        fontWeight: typography.fontWeight.medium,
+        color: colors.text.primary,
+        marginBottom: 2,
+    },
+    purposeLabelActive: {
+        color: colors.primary[700],
+    },
+    purposeDescription: {
+        fontSize: typography.fontSize.sm,
+        color: colors.text.secondary,
+    },
+    toneRow: {
+        flexDirection: 'row',
+        gap: spacing.sm,
+    },
+    toneButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1.5,
+        borderColor: colors.border.light,
+        backgroundColor: colors.background.primary,
+        gap: spacing.xs,
+    },
+    toneButtonActive: {
+        borderColor: colors.primary[600],
+        backgroundColor: colors.primary[50],
+    },
+    toneLabel: {
+        fontSize: typography.fontSize.sm,
+        fontWeight: typography.fontWeight.medium,
+        color: colors.text.secondary,
+    },
+    toneLabelActive: {
+        color: colors.primary[700],
+    },
+    messageCard: {
+        marginTop: spacing.lg,
+    },
+    messageHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: spacing.md,
+    },
+    messageTitle: {
+        fontSize: typography.fontSize.base,
+        fontWeight: typography.fontWeight.semibold,
+        color: colors.text.primary,
+    },
+    messageInput: {
+        backgroundColor: colors.background.secondary,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        fontSize: typography.fontSize.base,
+        color: colors.text.primary,
+        minHeight: 200,
+        textAlignVertical: 'top',
+        lineHeight: 22,
+    },
+    messageActions: {
+        flexDirection: 'row',
+        marginTop: spacing.lg,
+    },
+    disclaimer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing.xs,
+        marginTop: spacing.xl,
+        paddingHorizontal: spacing.lg,
+    },
+    disclaimerText: {
+        fontSize: typography.fontSize.xs,
+        color: colors.text.tertiary,
+        textAlign: 'center',
+    },
+});
+
+export default AIFollowUpScreen;
