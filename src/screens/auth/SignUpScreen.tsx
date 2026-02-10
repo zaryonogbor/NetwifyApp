@@ -8,6 +8,7 @@ import {
     ScrollView,
     TouchableOpacity,
     Alert,
+    Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -15,7 +16,7 @@ import { Feather } from '@expo/vector-icons';
 import { Button, Input } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { auth } from '../../config/firebase';
-import { colors, typography, spacing } from '../../theme';
+import { colors, typography, spacing, borderRadius } from '../../theme';
 import { RootStackParamList } from '../../types';
 
 type SignUpScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'SignUp'>;
@@ -29,6 +30,7 @@ export const SignUpScreen: React.FC<Props> = ({ navigation }) => {
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [acceptedTerms, setAcceptedTerms] = useState(false);
     const [errors, setErrors] = useState<{
@@ -86,9 +88,7 @@ export const SignUpScreen: React.FC<Props> = ({ navigation }) => {
         try {
             console.log('Calling signUp in AuthContext...');
             await signUp(email.trim(), password);
-            console.log('Sign up successful, navigating to CreateProfile');
-            // Navigate to create profile after successful signup
-            navigation.navigate('CreateProfile');
+            console.log('Sign up successful, automatic navigation will handle stack switch');
         } catch (error: any) {
             console.error('Sign up error details:', error);
             let message = 'An error occurred during sign up';
@@ -166,10 +166,19 @@ export const SignUpScreen: React.FC<Props> = ({ navigation }) => {
                             placeholder="Confirm your password"
                             value={confirmPassword}
                             onChangeText={setConfirmPassword}
-                            secureTextEntry={!showPassword}
+                            secureTextEntry={!showConfirmPassword}
                             autoCapitalize="none"
                             error={errors.confirmPassword}
                             leftIcon={<Feather name="lock" size={20} color={colors.text.tertiary} />}
+                            rightIcon={
+                                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                                    <Feather
+                                        name={showConfirmPassword ? 'eye-off' : 'eye'}
+                                        size={20}
+                                        color={colors.text.tertiary}
+                                    />
+                                </TouchableOpacity>
+                            }
                         />
 
                         {/* Terms Checkbox */}
@@ -203,7 +212,10 @@ export const SignUpScreen: React.FC<Props> = ({ navigation }) => {
                     {/* Footer */}
                     <View style={styles.footer}>
                         <Text style={styles.footerText}>Already have an account?</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                        <TouchableOpacity onPress={() => {
+                            Keyboard.dismiss();
+                            navigation.navigate('Login');
+                        }}>
                             <Text style={styles.footerLink}>Sign In</Text>
                         </TouchableOpacity>
                     </View>
@@ -244,7 +256,7 @@ const styles = StyleSheet.create({
         marginBottom: spacing.xl,
     },
     title: {
-        fontSize: typography.fontSize['2xl'],
+        fontSize: 32, // Larger title
         fontWeight: typography.fontWeight.bold,
         color: colors.text.primary,
         marginBottom: spacing.xs,
@@ -252,7 +264,7 @@ const styles = StyleSheet.create({
     subtitle: {
         fontSize: typography.fontSize.base,
         color: colors.text.secondary,
-        marginBottom: spacing.xl,
+        marginBottom: spacing['2xl'], // More space
     },
     termsContainer: {
         flexDirection: 'row',
@@ -265,7 +277,7 @@ const styles = StyleSheet.create({
         height: 20,
         borderRadius: 4,
         borderWidth: 1.5,
-        borderColor: colors.border.medium,
+        borderColor: colors.primary[600], // Use primary color for border
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: spacing.sm,
@@ -282,7 +294,7 @@ const styles = StyleSheet.create({
         lineHeight: 20,
     },
     termsLink: {
-        color: colors.primary[600],
+        color: colors.accent[500],
         fontWeight: typography.fontWeight.medium,
     },
     errorText: {
@@ -291,7 +303,10 @@ const styles = StyleSheet.create({
         marginBottom: spacing.sm,
     },
     signUpButton: {
-        marginTop: spacing.md,
+        marginTop: spacing.lg,
+        backgroundColor: colors.primary[600],
+        height: 56,
+        borderRadius: borderRadius.xl,
     },
     footer: {
         flexDirection: 'row',
@@ -301,12 +316,12 @@ const styles = StyleSheet.create({
     },
     footerText: {
         fontSize: typography.fontSize.base,
-        color: colors.text.secondary,
+        color: colors.text.tertiary,
     },
     footerLink: {
         fontSize: typography.fontSize.base,
         fontWeight: typography.fontWeight.semibold,
-        color: colors.primary[600],
+        color: colors.accent[500], // Salmon color
     },
 });
 

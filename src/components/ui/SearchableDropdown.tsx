@@ -20,6 +20,7 @@ interface Option {
 
 interface SearchableDropdownProps {
     label?: string;
+    required?: boolean;
     options: Option[];
     value: string;
     onSelect: (value: string) => void;
@@ -32,6 +33,7 @@ const windowHeight = Dimensions.get('window').height;
 
 export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
     label,
+    required,
     options,
     value,
     onSelect,
@@ -61,7 +63,12 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
 
     return (
         <View style={styles.container}>
-            {label && <Text style={styles.label}>{label}</Text>}
+            {label && (
+                <Text style={styles.label}>
+                    {label}
+                    {required && <Text style={{ color: colors.accent[500] }}> *</Text>}
+                </Text>
+            )}
 
             <TouchableOpacity
                 style={[

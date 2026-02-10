@@ -1,41 +1,47 @@
 // Netwify Design System - Theme Configuration
 
 export const colors = {
-    // Primary Colors
+    // Primary - Dark Purple
     primary: {
-        50: '#EFF6FF',
-        100: '#DBEAFE',
-        200: '#BFDBFE',
-        300: '#93C5FD',
-        400: '#60A5FA',
-        500: '#3B82F6',
-        600: '#2563EB',
-        700: '#1D4ED8',
-        800: '#1E40AF',
-        900: '#1E3A8A',
+        50: '#ECEBFA',
+        100: '#D5D2EB',
+        200: '#BDB9DD',
+        300: '#9E97CA', // Neutral/Text
+        400: '#8A84BC',
+        500: '#756EAE',
+        600: '#48426D', // Main Primary
+        700: '#3A3557',
+        800: '#2C2842',
+        900: '#1E1B2D',
     },
 
-    // Accent - AI Features
+    // Secondary - Soft Peach
+    secondary: {
+        50: '#FDF8F3',
+        100: '#FAEDDF',
+        200: '#F7E2CB',
+        300: '#F4D7B7',
+        400: '#F2CCA3',
+        500: '#F0C38E', // Main Secondary
+        600: '#D8AF80',
+        700: '#C09C72',
+        800: '#A88963',
+        900: '#907555',
+    },
+
+    // Accent - Salmon
     accent: {
-        50: '#ECFEFF',
-        100: '#CFFAFE',
-        200: '#A5F3FC',
-        300: '#67E8F9',
-        400: '#22D3EE',
-        500: '#06B6D4',
-        600: '#0891B2',
-        700: '#0E7490',
-        800: '#155E75',
-        900: '#164E63',
+        500: '#F1AA9B', // Main Accent
+        600: '#D9998B',
     },
 
-    // Neutral Colors
+    // Neutral Colors (Lavender/Grey tones)
     neutral: {
-        50: '#F9FAFB',
+        50: '#FAFAFA', // Background
         100: '#F3F4F6',
         200: '#E5E7EB',
         300: '#D1D5DB',
-        400: '#9CA3AF',
+        400: '#9E97CA', // Using the provided Neutral/Text color
         500: '#6B7280',
         600: '#4B5563',
         700: '#374151',
@@ -47,19 +53,19 @@ export const colors = {
     success: '#10B981',
     warning: '#F59E0B',
     error: '#EF4444',
-    info: '#3B82F6',
+    info: '#48426D', // Using primary
 
     // Background Colors
     background: {
-        primary: '#FFFFFF',
-        secondary: '#F9FAFB',
-        tertiary: '#EFF6FF',
+        primary: '#FAFAFA', // New background color
+        secondary: '#FFFFFF',
+        tertiary: '#F4F4F5',
     },
 
     // Text Colors
     text: {
-        primary: '#111827',
-        secondary: '#6B7280',
+        primary: '#48426D', // Using Primary for main text based on design
+        secondary: '#9E97CA', // Using Neutral for secondary text
         tertiary: '#9CA3AF',
         inverse: '#FFFFFF',
     },
@@ -68,7 +74,7 @@ export const colors = {
     border: {
         light: '#E5E7EB',
         medium: '#D1D5DB',
-        dark: '#9CA3AF',
+        dark: '#9E97CA',
     },
 };
 
@@ -122,24 +128,15 @@ export const borderRadius = {
 
 export const shadows = {
     sm: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 2,
+        boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)',
         elevation: 1,
     },
     md: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
+        boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
         elevation: 2,
     },
     lg: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
+        boxShadow: '0px 4px 8px rgba(0, 0, 0, 0.1)',
         elevation: 4,
     },
 };

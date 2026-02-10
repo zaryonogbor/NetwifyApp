@@ -8,13 +8,14 @@ import {
     ScrollView,
     TouchableOpacity,
     Alert,
+    Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Feather } from '@expo/vector-icons';
 import { Button, Input } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
-import { colors, typography, spacing } from '../../theme';
+import { colors, typography, spacing, borderRadius } from '../../theme';
 import { RootStackParamList } from '../../types';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
@@ -138,7 +139,10 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
                     {/* Footer */}
                     <View style={styles.footer}>
                         <Text style={styles.footerText}>Don't have an account?</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+                        <TouchableOpacity onPress={() => {
+                            Keyboard.dismiss();
+                            navigation.navigate('SignUp');
+                        }}>
                             <Text style={styles.footerLink}>Sign Up</Text>
                         </TouchableOpacity>
                     </View>
@@ -174,12 +178,14 @@ const styles = StyleSheet.create({
     tagline: {
         fontSize: typography.fontSize.base,
         color: colors.text.secondary,
+        textAlign: 'center',
+        marginBottom: spacing.xl,
     },
     form: {
         marginBottom: spacing['2xl'],
     },
     title: {
-        fontSize: typography.fontSize['2xl'],
+        fontSize: 32, // Larger title as per design
         fontWeight: typography.fontWeight.bold,
         color: colors.text.primary,
         marginBottom: spacing.xs,
@@ -187,10 +193,13 @@ const styles = StyleSheet.create({
     subtitle: {
         fontSize: typography.fontSize.base,
         color: colors.text.secondary,
-        marginBottom: spacing.xl,
+        marginBottom: spacing['2xl'], // More space after subtitle
     },
     loginButton: {
-        marginTop: spacing.md,
+        marginTop: spacing.lg, // More space before button
+        backgroundColor: colors.primary[600], // Ensure correct primary color
+        height: 56, // Taller button
+        borderRadius: borderRadius.xl,
     },
     footer: {
         flexDirection: 'row',
@@ -200,12 +209,12 @@ const styles = StyleSheet.create({
     },
     footerText: {
         fontSize: typography.fontSize.base,
-        color: colors.text.secondary,
+        color: colors.text.tertiary,
     },
     footerLink: {
         fontSize: typography.fontSize.base,
         fontWeight: typography.fontWeight.semibold,
-        color: colors.primary[600],
+        color: colors.accent[500], // Use accent color for "Sign up"
     },
 });
 

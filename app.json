@@ -46,7 +46,8 @@
         {
           "photosPermission": "Allow Netwify to access your photos to add a profile picture"
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

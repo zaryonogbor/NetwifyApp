@@ -11,6 +11,7 @@ import { colors, typography, spacing, borderRadius } from '../../theme';
 
 interface InputProps extends RNTextInputProps {
     label?: string;
+    required?: boolean;
     error?: string;
     helperText?: string;
     leftIcon?: React.ReactNode;
@@ -20,6 +21,7 @@ interface InputProps extends RNTextInputProps {
 
 export const Input: React.FC<InputProps> = ({
     label,
+    required,
     error,
     helperText,
     leftIcon,
@@ -38,7 +40,12 @@ export const Input: React.FC<InputProps> = ({
 
     return (
         <View style={[styles.container, containerStyle]}>
-            {label && <Text style={styles.label}>{label}</Text>}
+            {label && (
+                <Text style={styles.label}>
+                    {label}
+                    {required && <Text style={{ color: colors.accent[500] }}> *</Text>}
+                </Text>
+            )}
             <View
                 style={[
                     styles.inputContainer,

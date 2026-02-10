@@ -16,11 +16,11 @@ import { Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, setDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Button, Input, Avatar, SearchableDropdown, CountryCodePicker } from '../../components/ui';
+import { Button, Input, SearchableDropdown, CountryCodePicker } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { db, storage } from '../../config/firebase';
 import { colors, typography, spacing, borderRadius } from '../../theme';
-import { RootStackParamList, UserProfile } from '../../types';
+import { RootStackParamList } from '../../types';
 
 const JOB_TITLES = [
     { label: 'Software Engineer', value: 'Software Engineer' },
@@ -49,19 +49,29 @@ interface Props {
 export const CreateProfileScreen: React.FC<Props> = ({ navigation }) => {
     const { user, refreshUserProfile } = useAuth();
 
-    const [displayName, setDisplayName] = useState('');
+    const [firstName, setFirstName] = useState('');
+    const [lastName, setLastName] = useState('');
+    const [email, setEmail] = useState(user?.email || '');
     const [selectedJobTitle, setSelectedJobTitle] = useState('');
     const [customJobTitle, setCustomJobTitle] = useState('');
     const [isOtherSelected, setIsOtherSelected] = useState(false);
     const [company, setCompany] = useState('');
     const [countryCode, setCountryCode] = useState('+234');
     const [phoneNumber, setPhoneNumber] = useState('');
-    const [phone, setPhone] = useState('');
     const [linkedIn, setLinkedIn] = useState('');
+    const [website, setWebsite] = useState('');
     const [bio, setBio] = useState('');
     const [photoUri, setPhotoUri] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState<{ displayName?: string }>({});
+    const [errors, setErrors] = useState<{
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        jobTitle?: string;
+        company?: string;
+        phone?: string;
+        bio?: string;
+    }>({});
 
     const pickImage = async () => {
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -94,9 +104,14 @@ export const CreateProfileScreen: React.FC<Props> = ({ navigation }) => {
     const validateForm = (): boolean => {
         const newErrors: typeof errors = {};
 
-        if (!displayName.trim()) {
-            newErrors.displayName = 'Name is required';
-        }
+        if (!firstName.trim()) newErrors.firstName = 'First Name is required';
+        if (!lastName.trim()) newErrors.lastName = 'Last Name is required';
+        if (!email.trim()) newErrors.email = 'Email is required';
+        if (!isOtherSelected && !selectedJobTitle) newErrors.jobTitle = 'Job Title is required';
+        if (isOtherSelected && !customJobTitle.trim()) newErrors.jobTitle = 'Job Title is required';
+        if (!company.trim()) newErrors.company = 'Company is required';
+        if (!phoneNumber.trim()) newErrors.phone = 'Phone Number is required';
+        if (!bio.trim()) newErrors.bio = 'About You is required';
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -114,17 +129,21 @@ export const CreateProfileScreen: React.FC<Props> = ({ navigation }) => {
             }
 
             const finalJobTitle = isOtherSelected ? customJobTitle.trim() : selectedJobTitle;
+            const displayName = `${firstName.trim()} ${lastName.trim()}`;
 
-            const profile: UserProfile = {
+            const profile: any = {
                 uid: user.uid,
-                email: user.email || '',
-                displayName: displayName.trim(),
-                photoURL,
-                jobTitle: finalJobTitle || undefined,
-                company: company.trim() || undefined,
-                phone: phoneNumber.trim() ? `${countryCode}${phoneNumber.trim()}` : undefined,
-                linkedIn: linkedIn.trim() || undefined,
-                bio: bio.trim() || undefined,
+                email: email.trim(),
+                firstName: firstName.trim(),
+                lastName: lastName.trim(),
+                displayName: displayName,
+                photoURL: photoURL || null,
+                jobTitle: finalJobTitle || null,
+                company: company.trim() || null,
+                phone: phoneNumber.trim() ? `${countryCode}${phoneNumber.trim()}` : null,
+                linkedIn: linkedIn.trim() || null,
+                website: website.trim() || null,
+                bio: bio.trim() || null,
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
@@ -154,7 +173,7 @@ export const CreateProfileScreen: React.FC<Props> = ({ navigation }) => {
                 >
                     {/* Header */}
                     <View style={styles.header}>
-                        <Text style={styles.title}>Edit Profile</Text>
+                        <Text style={styles.title}>Create Card</Text>
                     </View>
 
                     {/* Photo Picker */}
@@ -163,72 +182,105 @@ export const CreateProfileScreen: React.FC<Props> = ({ navigation }) => {
                             <Image source={{ uri: photoUri }} style={styles.photo} />
                         ) : (
                             <View style={styles.photoPlaceholder}>
-                                <Feather name="camera" size={32} color={colors.primary[400]} />
+                                <Feather name="camera" size={24} color={colors.primary[600]} />
                                 <Text style={styles.photoPlaceholderText}>Add Photo</Text>
                             </View>
                         )}
                         <View style={styles.editBadge}>
-                            <Feather name="edit-2" size={14} color={colors.text.inverse} />
+                            <Feather name="edit-2" size={12} color={colors.text.inverse} />
                         </View>
                     </TouchableOpacity>
 
                     {/* Form */}
                     <View style={styles.form}>
                         <Input
-                            label="Full Name *"
-                            placeholder="Enter your name"
-                            value={displayName}
-                            onChangeText={setDisplayName}
+                            label="First Name"
+                            required
+                            placeholder="Eg. John"
+                            value={firstName}
+                            onChangeText={setFirstName}
                             autoCapitalize="words"
-                            error={errors.displayName}
+                            error={errors.firstName}
                             leftIcon={<Feather name="user" size={20} color={colors.text.tertiary} />}
+                        />
+
+                        <Input
+                            label="Last Name"
+                            required
+                            placeholder="Eg. Doe"
+                            value={lastName}
+                            onChangeText={setLastName}
+                            autoCapitalize="words"
+                            error={errors.lastName}
+                            leftIcon={<Feather name="user" size={20} color={colors.text.tertiary} />}
+                        />
+
+                        <Input
+                            label="Email"
+                            required
+                            placeholder="Eg. john@example.com"
+                            value={email}
+                            onChangeText={setEmail}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            error={errors.email}
+                            leftIcon={<Feather name="mail" size={20} color={colors.text.tertiary} />}
                         />
 
                         <SearchableDropdown
                             label="Job Title"
-                            placeholder="Select your job title"
+                            required
+                            placeholder="Eg. UX Designer"
                             options={JOB_TITLES}
                             value={selectedJobTitle}
                             onSelect={(val: string) => {
                                 setSelectedJobTitle(val);
                                 setIsOtherSelected(val === 'Other');
                             }}
+                            error={errors.jobTitle}
                             leftIcon={<Feather name="briefcase" size={20} color={colors.text.tertiary} />}
                         />
 
                         {isOtherSelected && (
                             <Input
                                 label="Custom Job Title"
+                                required
                                 placeholder="Enter your job title"
                                 value={customJobTitle}
                                 onChangeText={setCustomJobTitle}
                                 autoCapitalize="words"
-                                leftIcon={<Feather name="edit-3" size={20} color={colors.text.tertiary} />}
+                                error={errors.jobTitle}
+                                leftIcon={<Feather name="briefcase" size={20} color={colors.text.tertiary} />}
                             />
                         )}
 
+
                         <Input
                             label="Company"
-                            placeholder="e.g., Acme Inc."
+                            required
+                            placeholder="E.g. Microsoft inc."
                             value={company}
                             onChangeText={setCompany}
                             autoCapitalize="words"
+                            error={errors.company}
                             leftIcon={<Feather name="home" size={20} color={colors.text.tertiary} />}
                         />
 
                         <View style={styles.phoneFieldContainer}>
                             <CountryCodePicker
-                                label="Phone"
+                                label="Phone Number"
+                                required
                                 value={countryCode}
                                 onSelect={setCountryCode}
                             />
                             <View style={{ flex: 1 }}>
                                 <Input
                                     label=" "
-                                    placeholder="801 234 5678"
+                                    placeholder="+000 000 000"
                                     value={phoneNumber}
                                     onChangeText={setPhoneNumber}
                                     keyboardType="phone-pad"
+                                    error={errors.phone}
                                     leftIcon={<Feather name="phone" size={20} color={colors.text.tertiary} />}
                                 />
                             </View>
@@ -236,7 +288,7 @@ export const CreateProfileScreen: React.FC<Props> = ({ navigation }) => {
 
                         <Input
                             label="LinkedIn URL"
-                            placeholder="linkedin.com/in/yourprofile"
+                            placeholder="linkedin.com/in/yourprofilename"
                             value={linkedIn}
                             onChangeText={setLinkedIn}
                             autoCapitalize="none"
@@ -245,13 +297,25 @@ export const CreateProfileScreen: React.FC<Props> = ({ navigation }) => {
                         />
 
                         <Input
-                            label="Short Bio"
-                            placeholder="Tell people a bit about yourself..."
+                            label="Website"
+                            placeholder="www.yourwebsite.com"
+                            value={website}
+                            onChangeText={setWebsite}
+                            autoCapitalize="none"
+                            keyboardType="url"
+                            leftIcon={<Feather name="globe" size={20} color={colors.text.tertiary} />}
+                        />
+
+                        <Input
+                            label="About You"
+                            required
+                            placeholder="Tell people a bit about yourself"
                             value={bio}
                             onChangeText={setBio}
+                            error={errors.bio}
                             multiline
-                            numberOfLines={3}
-                            style={{ height: 80, textAlignVertical: 'top' }}
+                            numberOfLines={4}
+                            style={{ height: 100, textAlignVertical: 'top' }}
                         />
 
                         <Button
@@ -288,16 +352,11 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     title: {
-        fontSize: typography.fontSize['2xl'],
+        fontSize: 24,
         fontWeight: typography.fontWeight.bold,
-        color: colors.text.primary,
+        color: colors.primary[600], // Dark Purple
         marginBottom: spacing.xs,
         textAlign: 'center',
-    },
-    subtitle: {
-        fontSize: typography.fontSize.base,
-        color: colors.text.secondary,
-        lineHeight: 22,
     },
     photoContainer: {
         alignSelf: 'center',
@@ -305,38 +364,37 @@ const styles = StyleSheet.create({
         position: 'relative',
     },
     photo: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
+        width: 100,
+        height: 100,
+        borderRadius: 50,
     },
     photoPlaceholder: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        backgroundColor: colors.primary[50],
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: '#EBEBF5', // Light greyish purple
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 2,
+        borderWidth: 1,
         borderColor: colors.primary[200],
-        borderStyle: 'dashed',
     },
     photoPlaceholderText: {
-        marginTop: spacing.xs,
-        fontSize: typography.fontSize.sm,
+        marginTop: 4,
+        fontSize: 10,
         color: colors.primary[600],
-        fontWeight: typography.fontWeight.medium,
+        fontWeight: '500',
     },
     editBadge: {
         position: 'absolute',
         bottom: 0,
         right: 0,
-        width: 32,
-        height: 32,
-        borderRadius: 16,
+        width: 24,
+        height: 24,
+        borderRadius: 12,
         backgroundColor: colors.primary[600],
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 3,
+        borderWidth: 2,
         borderColor: colors.background.primary,
     },
     form: {},
@@ -346,6 +404,9 @@ const styles = StyleSheet.create({
     },
     createButton: {
         marginTop: spacing.lg,
+        backgroundColor: colors.primary[600],
+        borderRadius: borderRadius.xl,
+        height: 56,
     },
 });
 

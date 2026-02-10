@@ -26,6 +26,7 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 const MainTabs = () => {
     return (
         <Tab.Navigator
+            detachInactiveScreens={false}
             screenOptions={{
                 headerShown: false,
                 tabBarActiveTintColor: colors.primary[600],

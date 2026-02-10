@@ -7,6 +7,7 @@ import {
     TouchableOpacity,
     Alert,
     Linking,
+    Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -18,14 +19,32 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
     const { userProfile, signOut } = useAuth();
 
     const handleSignOut = () => {
-        Alert.alert(
-            'Sign Out',
-            'Are you sure you want to sign out?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Sign Out', style: 'destructive', onPress: signOut },
-            ]
-        );
+        const performSignOut = async () => {
+            console.log('User confirmed sign out, calling signOut...');
+            try {
+                await signOut();
+                console.log('Sign out successful');
+            } catch (error) {
+                console.error('Error during sign out:', error);
+                Alert.alert('Error', 'An error occurred during sign out. Please try again.');
+            }
+        };
+
+        if (Platform.OS === 'web') {
+            // On web, Alert.alert doesn't always show up or behave well depending on the environment
+            if (window.confirm('Are you sure you want to sign out?')) {
+                performSignOut();
+            }
+        } else {
+            Alert.alert(
+                'Sign Out',
+                'Are you sure you want to sign out?',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Sign Out', style: 'destructive', onPress: performSignOut },
+                ]
+            );
+        }
     };
 
     const handleEditProfile = () => {

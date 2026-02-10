@@ -44,6 +44,7 @@ interface CountryCodePickerProps {
     value: string; // The code, e.g., "+234"
     onSelect: (code: string) => void;
     label?: string;
+    required?: boolean;
 }
 
 const windowHeight = Dimensions.get('window').height;
@@ -52,6 +53,7 @@ export const CountryCodePicker: React.FC<CountryCodePickerProps> = ({
     value,
     onSelect,
     label,
+    required,
 }) => {
     const [isVisible, setIsVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -76,7 +78,12 @@ export const CountryCodePicker: React.FC<CountryCodePickerProps> = ({
 
     return (
         <View style={styles.container}>
-            {label && <Text style={styles.label}>{label}</Text>}
+            {label && (
+                <Text style={styles.label}>
+                    {label}
+                    {required && <Text style={{ color: colors.accent[500] }}> *</Text>}
+                </Text>
+            )}
             <TouchableOpacity
                 style={styles.pickerButton}
                 onPress={() => setIsVisible(true)}

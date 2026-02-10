@@ -171,7 +171,7 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
 
             await updateDoc(doc(db, 'users', user.uid), {
                 displayName: displayName.trim(),
-                photoURL,
+                photoURL: photoURL || null,
                 jobTitle: finalJobTitle || null,
                 company: company.trim() || null,
                 phone: phoneNumber.trim() ? `${countryCode}${phoneNumber.trim()}` : null,

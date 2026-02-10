@@ -61,6 +61,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+            console.log('Auth state changed:', currentUser?.uid);
             setUser(currentUser);
             if (currentUser) {
                 await fetchUserProfile(currentUser.uid);
@@ -68,6 +69,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
                 setUserProfile(null);
             }
             setLoading(false);
+            console.log('Auth initialization complete');
         });
 
         return () => unsubscribe();
