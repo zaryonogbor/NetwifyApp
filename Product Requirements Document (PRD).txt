@@ -1,0 +1,250 @@
+Product Requirements Document (PRD) 
+i. Overview 
+Netwify is a mobile-first networking application designed to replace traditional paper business 
+cards at events. It enables professionals to exchange digital business cards via QR code 
+scanning, build verified mutual connections, and leverage AI to remember context and generate 
+high-quality follow-up messages. 
+The MVP focuses on fast connection exchange, mutual consent, and AI-assisted relationship 
+management. 
+ii. Problem Statement 
+Professionals attending events face the following challenges: 
+• Paper business cards are easily lost or forgotten 
+• Phone contact saving is slow and error-prone 
+• No context is retained about where or why a contact was met 
+• Follow-ups are often delayed, generic, or never sent 
+iii. Solution 
+Netwify provides: 
+• Instant QR-based digital card exchange 
+• Mutual consent before contacts are saved 
+• Smart AI-generated summaries to preserve meeting context 
+• AI-assisted personalized follow-up message generation 
+iv. Vision & Mission 
+Vision: To become the default global infrastructure for professional networking—replacing 
+paper business cards, fragmented contact saving, and forgotten follow-ups. 
+Mission: Help people turn real-world meetings into meaningful, trackable, and lasting 
+professional relationships using smart identity exchange and AI-powered context. 
+Netwify – Mobile MVP (AI Vibe Coding Ready) 
+Audience: AI vibe-coding / autonomous development platforms 
+Goal: Generate a fully working React Native (Expo) mobile MVP using Firebase as backend. 
+This document is explicit, structured, and implementation-oriented. The AI system should not 
+invent features outside this scope. 
+
+1. Product Summary 
+Product Name: Netwify 
+Product Type: Mobile networking app (Digital business cards + AI follow-ups) 
+Platforms: iOS & Android (single codebase) 
+Framework: React Native + Expo Go 
+Backend: Firebase (Auth, Firestore, Storage, Cloud Functions) 
+AI: External LLM API (abstracted service) 
+
+2. Product Objective (MVP) 
+Build a mobile app that allows users at events to: 
+1. Create a digital business card 
+2. Exchange cards via QR scan 
+3. Form mutual connections 
+4. Preserve meeting context automatically 
+5. Generate AI-powered contact summaries 
+6. Generate personalized follow-up messages 
+Core principle: Fast, consent-based, and human-controlled networking. 
+
+3. Target User 
+• Professionals attending networking events 
+• Founders, freelancers, developers, designers, sales reps 
+
+4. Tech Stack (MANDATORY) 
+Frontend 
+• React Native 
+• Expo Go 
+• TypeScript 
+• React Navigation 
+Backend (Firebase) 
+• Firebase Authentication 
+• Cloud Firestore 
+• Firebase Storage 
+• Firebase Cloud Functions 
+• Firebase Cloud Messaging (notifications) 
+AI Layer 
+• External LLM API (Groq API) 
+• Accessed ONLY via Cloud Functions 
+
+5. App Navigation Structure 
+Bottom Tab Navigation: 
+• Home 
+• Scan 
+• Contacts 
+• Profile 
+Stack navigation within each tab where needed. 
+
+6. Screen Requirements (Detailed) 
+6.1 Splash Screen 
+Purpose: App initialization 
+• Logo 
+• Loading indicator 
+
+6.2 Onboarding (3 Screens) 
+1. Value proposition 
+2. How it works (QR → Connect → Follow-up) 
+3. Consent & privacy assurance 
+CTA: Get Started 
+
+6.3 Authentication 
+• Email + password 
+• Google Sign-In 
+Firebase Auth rules: 
+• Email verification optional for MVP 
+
+6.4 Create Digital Card 
+Fields: 
+• Full name 
+• Job title 
+• Company 
+• Phone 
+• Email 
+• LinkedIn URL 
+• Profile photo 
+Actions: 
+• Save card 
+• Generate QR code 
+QR must be usable offline. 
+
+6.5 Home Screen 
+Elements: 
+• Primary button: Show My QR 
+• Secondary button: Scan QR 
+• Recent connections list 
+• Notification badge 
+
+6.6 My QR Code Screen 
+• Large QR code 
+• Name + role 
+• Share QR as image 
+
+6.7 Scan QR Screen 
+• Camera QR scanner 
+• Flash toggle 
+Flow: 
+• Scan → Profile preview → Send connection request 
+
+6.8 Connection Request Screens 
+Outgoing Preview: 
+• Profile being scanned 
+• Send request 
+Incoming Request: 
+• Accept / Decline 
+No auto-saving without acceptance. 
+
+6.9 Contacts Screen 
+• List of accepted connections 
+• Search bar 
+• Filter by date 
+
+6.10 Contact Detail Screen (AI-Enhanced) 
+Sections: 
+• Contact info 
+• Event/context (manual for MVP) 
+Smart Contact Summary (AI) 
+• Auto-generated 1–2 sentence summary 
+• Buttons: Regenerate | Edit | Disable 
+Notes 
+• Manual notes input 
+Follow-Up 
+• Button: Generate Follow-Up (AI) 
+• Reminder (local notification) 
+
+6.11 AI Follow-Up Generator Screen 
+Inputs: 
+• Channel: Email | WhatsApp | LinkedIn 
+• Tone: Friendly | Professional 
+Output: 
+• Editable message text 
+Actions: 
+• Regenerate 
+• Copy 
+AI must never send messages automatically. 
+
+6.12 Notifications Screen 
+• Connection requests 
+• Accepted connections 
+• Reminder alerts 
+
+6.13 Profile & Settings 
+• Edit digital card 
+• Privacy controls 
+• Logout 
+
+7. Firebase Data Models 
+users 
+• uid 
+• fullName 
+• email 
+• createdAt 
+digitalCards 
+• cardId 
+• uid 
+• jobTitle 
+• company 
+• phone 
+• linkedin 
+connections 
+• connectionId 
+• requesterId 
+• receiverId 
+• status 
+• createdAt 
+contactSummaries 
+• summaryId 
+• connectionId 
+• summaryText 
+• aiGenerated 
+followUps 
+• followUpId 
+• connectionId 
+• channel 
+• tone 
+• messageText 
+
+8. AI Functional Requirements 
+Smart Summary AI 
+Trigger: On connection acceptance 
+Input: 
+• User card 
+• Contact card 
+• Notes 
+Output: 1–2 sentence summary 
+Follow-Up AI 
+Trigger: User clicks Generate Follow-Up 
+Input: 
+• Summary 
+• Channel 
+• Tone 
+Output: Editable message 
+
+9. AI Prompt Templates 
+Summary Prompt 
+"Summarize who this person is and why they matter professionally based on the meeting 
+context. Keep it to 2 sentences." 
+Follow-Up Prompt 
+"Write a {tone} follow-up message suitable for {channel}. Keep it natural and professional." 
+
+10. Security & Privacy Rules 
+• All Firestore access must be user-scoped 
+• Users can only view their own connections 
+• AI requests must go through Cloud Functions 
+
+11. Performance Requirements 
+• App launch <2s 
+• AI response <5s 
+• QR scan <1s 
+
+12. Out of Scope (Strict) 
+• Web app 
+• CRM integrations 
+• Team accounts 
+• NFC 
+• Auto-messaging 
+
+13. Final Instruction to AI Coding Platform 
+Build this mobile MVP exactly as specified using React Native (Expo) and Firebase. 
+Do not add features. 
+Default to privacy-first, consent-based behavior. 
+This PRD is the single source of truth for Netwify MVP.

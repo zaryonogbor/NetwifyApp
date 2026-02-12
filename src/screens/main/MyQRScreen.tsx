@@ -5,14 +5,17 @@ import {
     StyleSheet,
     Share,
     TouchableOpacity,
+    Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { useAuth } from '../../context/AuthContext';
-import { Card, Avatar, Button } from '../../components/ui';
+import { Avatar } from '../../components/ui';
 import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
 import { QRCodeData } from '../../types';
+
+const { width } = Dimensions.get('window');
 
 export const MyQRScreen: React.FC = () => {
     const { user, userProfile } = useAuth();
@@ -45,57 +48,55 @@ export const MyQRScreen: React.FC = () => {
                     </Text>
                 </View>
 
-                {/* QR Card */}
-                <Card variant="elevated" style={styles.qrCard}>
-                    {/* Profile Info */}
-                    <View style={styles.profileSection}>
-                        <Avatar
-                            source={userProfile?.photoURL}
-                            name={userProfile?.displayName}
-                            size="lg"
-                        />
-                        <View style={styles.profileInfo}>
+                {/* QR Card Container */}
+                <View style={styles.cardWrapper}>
+                    {/* The Dark Purple Card */}
+                    <View style={styles.qrCard}>
+                        {/* Profile Info */}
+                        <View style={styles.profileSection}>
                             <Text style={styles.profileName}>{userProfile?.displayName}</Text>
                             <Text style={styles.profileRole}>
                                 {userProfile?.jobTitle}
-                                {userProfile?.company && ` at ${userProfile?.company}`}
+                                {userProfile?.company && ` At ${userProfile?.company}`}
                             </Text>
                         </View>
-                    </View>
 
-                    {/* Divider */}
-                    <View style={styles.divider} />
-
-                    {/* QR Code */}
-                    <View style={styles.qrContainer}>
-                        <View style={styles.qrWrapper}>
+                        {/* QR Code Container (White Box) */}
+                        <View style={styles.qrContainer}>
                             <QRCode
                                 value={JSON.stringify(qrData)}
-                                size={200}
-                                color={colors.primary[900]}
-                                backgroundColor={colors.background.primary}
+                                size={width * 0.5} // Responsive size
+                                color="#000000"
+                                backgroundColor="#FFFFFF"
                             />
                         </View>
-                    </View>
 
-                    {/* Scan Instructions */}
-                    <View style={styles.instructions}>
-                        <Feather name="smartphone" size={16} color={colors.text.tertiary} />
+                        {/* Scan Instructions */}
                         <Text style={styles.instructionsText}>
-                            Point camera at this code to connect
+                            Scan this code to send connection request
                         </Text>
                     </View>
-                </Card>
+
+                    {/* Overlapping Avatar - Positioned outside the card but visually on top */}
+                    <View style={styles.avatarContainer}>
+                        <Avatar
+                            source={userProfile?.photoURL}
+                            name={userProfile?.displayName}
+                            size="xl" // Assuming 'xl' is supported or will default to large
+                        />
+                    </View>
+                </View>
 
                 {/* Actions */}
                 <View style={styles.actions}>
-                    <Button
-                        title="Share Profile"
+                    <TouchableOpacity
+                        style={styles.shareButton}
                         onPress={handleShare}
-                        icon={<Feather name="share-2" size={18} color={colors.text.inverse} />}
-                        fullWidth
-                        size="lg"
-                    />
+                        activeOpacity={0.8}
+                    >
+                        <Feather name="share-2" size={20} color="#FFFFFF" style={styles.shareIcon} />
+                        <Text style={styles.shareButtonText}>Sign Profile</Text>
+                    </TouchableOpacity>
                 </View>
             </View>
         </SafeAreaView>
@@ -105,78 +106,107 @@ export const MyQRScreen: React.FC = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background.secondary,
+        backgroundColor: '#FAFAFA', // Light background
     },
     content: {
         flex: 1,
         paddingHorizontal: spacing.xl,
-        paddingTop: spacing.xl,
+        paddingTop: spacing.lg,
+        alignItems: 'center',
     },
     header: {
         alignItems: 'center',
-        marginBottom: spacing.xl,
+        marginBottom: spacing['3xl'], // Space for avatar overlap
     },
     title: {
-        fontSize: typography.fontSize['2xl'],
+        fontSize: typography.fontSize['3xl'], // Larger title
         fontWeight: typography.fontWeight.bold,
-        color: colors.text.primary,
+        color: colors.primary[600], // Dark Purple
         marginBottom: spacing.xs,
     },
     subtitle: {
-        fontSize: typography.fontSize.base,
-        color: colors.text.secondary,
+        fontSize: typography.fontSize.sm,
+        color: '#9E97CA', // Light Purple Grey
         textAlign: 'center',
     },
+    cardWrapper: {
+        width: '100%',
+        alignItems: 'center',
+        marginTop: spacing.xl, // Push down to make room for avatar
+        position: 'relative',
+    },
     qrCard: {
-        padding: spacing.xl,
+        backgroundColor: '#433D62', // Dark Purple Card Background
+        width: '100%',
+        borderRadius: 30,
+        paddingTop: 70, // Space for avatar
+        paddingBottom: spacing.xl,
+        paddingHorizontal: spacing.xl,
+        alignItems: 'center',
+        ...shadows.lg,
+    },
+    avatarContainer: {
+        position: 'absolute',
+        top: -50, // Pull up to overlap
+        zIndex: 10,
+        borderRadius: 999,
+        borderWidth: 4,
+        borderColor: '#FAFAFA', // Match background
+        padding: 4, // Inner spacing
+        backgroundColor: '#FAFAFA',
     },
     profileSection: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    profileInfo: {
-        flex: 1,
-        marginLeft: spacing.md,
-    },
-    profileName: {
-        fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.text.primary,
-    },
-    profileRole: {
-        fontSize: typography.fontSize.sm,
-        color: colors.text.secondary,
-        marginTop: 2,
-    },
-    divider: {
-        height: 1,
-        backgroundColor: colors.border.light,
-        marginVertical: spacing.xl,
-    },
-    qrContainer: {
         alignItems: 'center',
         marginBottom: spacing.lg,
     },
-    qrWrapper: {
-        padding: spacing.lg,
-        backgroundColor: colors.background.primary,
-        borderRadius: borderRadius.lg,
-        borderWidth: 2,
-        borderColor: colors.primary[100],
+    profileName: {
+        fontSize: typography.fontSize.xl,
+        fontWeight: typography.fontWeight.bold,
+        color: '#FFFFFF', // White text
+        marginBottom: 4,
     },
-    instructions: {
-        flexDirection: 'row',
+    profileRole: {
+        fontSize: typography.fontSize.sm,
+        color: '#F2A090', // Salmon/Peach
+        fontWeight: '500',
+    },
+    qrContainer: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 20,
+        padding: spacing.lg,
         alignItems: 'center',
         justifyContent: 'center',
-        gap: spacing.sm,
+        marginBottom: spacing.lg,
+        width: width * 0.65,
+        height: width * 0.65,
     },
     instructionsText: {
         fontSize: typography.fontSize.sm,
-        color: colors.text.tertiary,
+        color: '#FFFFFF',
+        opacity: 0.8,
+        textAlign: 'center',
     },
     actions: {
+        width: '100%',
         marginTop: spacing['2xl'],
-        gap: spacing.md,
+        paddingHorizontal: spacing.sm,
+    },
+    shareButton: {
+        backgroundColor: '#F2A090', // Salmon Button
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: spacing.md + 4, // Taller button
+        borderRadius: borderRadius.full,
+        ...shadows.md,
+    },
+    shareIcon: {
+        marginRight: spacing.sm,
+    },
+    shareButtonText: {
+        color: '#FFFFFF',
+        fontSize: typography.fontSize.lg,
+        fontWeight: typography.fontWeight.bold,
     },
 });
 

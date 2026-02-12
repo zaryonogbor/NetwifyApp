@@ -40,6 +40,12 @@ const JOB_TITLES = [
     { label: 'Other', value: 'Other' },
 ];
 
+const GENDER_OPTIONS = [
+    { label: 'Male', value: 'Male' },
+    { label: 'Female', value: 'Female' },
+    { label: 'Other', value: 'Other' },
+];
+
 type CreateProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'CreateProfile'>;
 
 interface Props {
@@ -58,6 +64,7 @@ export const CreateProfileScreen: React.FC<Props> = ({ navigation }) => {
     const [company, setCompany] = useState('');
     const [countryCode, setCountryCode] = useState('+234');
     const [phoneNumber, setPhoneNumber] = useState('');
+    const [gender, setGender] = useState('');
     const [linkedIn, setLinkedIn] = useState('');
     const [website, setWebsite] = useState('');
     const [bio, setBio] = useState('');
@@ -70,6 +77,7 @@ export const CreateProfileScreen: React.FC<Props> = ({ navigation }) => {
         jobTitle?: string;
         company?: string;
         phone?: string;
+        gender?: string;
         bio?: string;
     }>({});
 
@@ -111,6 +119,7 @@ export const CreateProfileScreen: React.FC<Props> = ({ navigation }) => {
         if (isOtherSelected && !customJobTitle.trim()) newErrors.jobTitle = 'Job Title is required';
         if (!company.trim()) newErrors.company = 'Company is required';
         if (!phoneNumber.trim()) newErrors.phone = 'Phone Number is required';
+        if (!gender) newErrors.gender = 'Gender is required';
         if (!bio.trim()) newErrors.bio = 'About You is required';
 
         setErrors(newErrors);
@@ -144,6 +153,7 @@ export const CreateProfileScreen: React.FC<Props> = ({ navigation }) => {
                 linkedIn: linkedIn.trim() || null,
                 website: website.trim() || null,
                 bio: bio.trim() || null,
+                gender: gender || null,
                 createdAt: new Date(),
                 updatedAt: new Date(),
             };
@@ -264,6 +274,17 @@ export const CreateProfileScreen: React.FC<Props> = ({ navigation }) => {
                             autoCapitalize="words"
                             error={errors.company}
                             leftIcon={<Feather name="home" size={20} color={colors.text.tertiary} />}
+                        />
+
+                        <SearchableDropdown
+                            label="Gender"
+                            required
+                            placeholder="Select Gender"
+                            options={GENDER_OPTIONS}
+                            value={gender}
+                            onSelect={setGender}
+                            error={errors.gender}
+                            leftIcon={<Feather name="users" size={20} color={colors.text.tertiary} />}
                         />
 
                         <View style={styles.phoneFieldContainer}>

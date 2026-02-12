@@ -6,14 +6,15 @@ import {
     FlatList,
     TouchableOpacity,
     TextInput,
+    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../config/firebase';
-import { Card, Avatar } from '../../components/ui';
-import { colors, typography, spacing, borderRadius } from '../../theme';
+import { Avatar } from '../../components/ui';
+import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
 import { Contact } from '../../types';
 
 export const ContactsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
@@ -63,23 +64,19 @@ export const ContactsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
             activeOpacity={0.7}
             onPress={() => navigation.navigate('ContactDetail', { contactId: item.id })}
         >
-            <Card style={styles.contactCard}>
-                <Avatar source={item.photoURL} name={item.displayName} size="lg" />
+            <View style={styles.contactItem}>
+                <View style={styles.avatarContainer}>
+                    <Avatar source={item.photoURL} name={item.displayName} size="lg" />
+                </View>
                 <View style={styles.contactInfo}>
                     <Text style={styles.contactName}>{item.displayName}</Text>
                     <Text style={styles.contactRole} numberOfLines={1}>
                         {item.jobTitle}
-                        {item.company && ` at ${item.company}`}
+                        {item.company && ` At ${item.company}`}
                     </Text>
-                    {item.aiSummary && (
-                        <View style={styles.aiTag}>
-                            <Feather name="zap" size={10} color={colors.accent[600]} />
-                            <Text style={styles.aiTagText}>AI Summary</Text>
-                        </View>
-                    )}
                 </View>
-                <Feather name="chevron-right" size={20} color={colors.text.tertiary} />
-            </Card>
+            </View>
+            <View style={styles.separator} />
         </TouchableOpacity>
     );
 
@@ -93,34 +90,47 @@ export const ContactsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         </View>
     );
 
-    const renderHeader = () => (
-        <View style={styles.searchContainer}>
-            <View style={styles.searchInputContainer}>
-                <Feather name="search" size={20} color={colors.text.tertiary} />
-                <TextInput
-                    style={styles.searchInput}
-                    placeholder="Search contacts..."
-                    placeholderTextColor={colors.text.tertiary}
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                />
-                {searchQuery.length > 0 && (
-                    <TouchableOpacity onPress={() => setSearchQuery('')}>
-                        <Feather name="x" size={20} color={colors.text.tertiary} />
-                    </TouchableOpacity>
-                )}
-            </View>
-        </View>
-    );
+    // Mock avatars for the stack
+    const mockStackAvatars = contacts.slice(0, 3).map(c => c.photoURL).filter(Boolean) as string[];
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             <View style={styles.header}>
-                <Text style={styles.title}>Contacts</Text>
-                <Text style={styles.subtitle}>{contacts.length} connections</Text>
+                <Text style={styles.title}>Connections</Text>
+
+                <View style={styles.connectionCountContainer}>
+                    <View style={styles.avatarStack}>
+                        {mockStackAvatars.length > 0 ? (
+                            mockStackAvatars.map((url, index) => (
+                                <Image
+                                    key={index}
+                                    source={{ uri: url }}
+                                    style={[styles.stackAvatar, { marginLeft: index > 0 ? -12 : 0, zIndex: 3 - index }]}
+                                />
+                            ))
+                        ) : (
+                            // Fallback if no contacts have photos or no contacts
+                            <View style={[styles.stackAvatar, { backgroundColor: colors.primary[100] }]}>
+                                <Feather name="user" size={14} color={colors.primary[600]} />
+                            </View>
+                        )}
+                    </View>
+                    <Text style={styles.subtitle}>{contacts.length > 0 ? `+${contacts.length} Connections` : '0 Connections'}</Text>
+                </View>
             </View>
 
-            {renderHeader()}
+            <View style={styles.searchContainer}>
+                <View style={styles.searchInputContainer}>
+                    <Feather name="search" size={20} color={colors.text.tertiary} />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="search connections..."
+                        placeholderTextColor={colors.text.tertiary}
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                    />
+                </View>
+            </View>
 
             <FlatList
                 data={filteredContacts}
@@ -130,6 +140,16 @@ export const ContactsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={renderEmpty}
             />
+
+            {/* Floating Action Button */}
+            <TouchableOpacity
+                style={styles.fab}
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('QRScanner')} // Assume FAB opens scanner or add options
+            >
+                <Feather name="plus" size={32} color="#FFFFFF" />
+            </TouchableOpacity>
+
         </SafeAreaView>
     );
 };
@@ -137,7 +157,7 @@ export const ContactsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background.secondary,
+        backgroundColor: '#FAFAFA',
     },
     header: {
         paddingHorizontal: spacing.xl,
@@ -145,28 +165,47 @@ const styles = StyleSheet.create({
         paddingBottom: spacing.md,
     },
     title: {
-        fontSize: typography.fontSize['2xl'],
+        fontSize: typography.fontSize['3xl'],
         fontWeight: typography.fontWeight.bold,
-        color: colors.text.primary,
+        color: colors.primary[600], // Dark Purple
+        marginBottom: spacing.xs,
+    },
+    connectionCountContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: spacing.xs,
+    },
+    avatarStack: {
+        flexDirection: 'row',
+        marginRight: spacing.sm,
+    },
+    stackAvatar: {
+        width: 28,
+        height: 28,
+        borderRadius: 14,
+        borderWidth: 2,
+        borderColor: '#FAFAFA',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     subtitle: {
         fontSize: typography.fontSize.sm,
-        color: colors.text.secondary,
-        marginTop: 2,
+        color: '#9E97CA', // Light Purple
+        fontWeight: '500',
     },
     searchContainer: {
         paddingHorizontal: spacing.xl,
-        paddingBottom: spacing.md,
+        paddingBottom: spacing.lg,
     },
     searchInputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.background.primary,
+        backgroundColor: '#FFFFFF',
         borderRadius: borderRadius.lg,
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
-        borderWidth: 1,
-        borderColor: colors.border.light,
+        borderWidth: 1.5,
+        borderColor: '#E5E7EB', // Light Grey Border
     },
     searchInput: {
         flex: 1,
@@ -177,43 +216,53 @@ const styles = StyleSheet.create({
     },
     listContent: {
         paddingHorizontal: spacing.xl,
-        paddingBottom: spacing['3xl'],
+        paddingBottom: 100, // Space for FAB
         flexGrow: 1,
     },
-    contactCard: {
+    contactItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: spacing.sm,
+        paddingVertical: spacing.md,
+    },
+    avatarContainer: {
+        marginRight: spacing.md,
+        borderWidth: 2,
+        borderColor: '#F2A090', // Salmon border
+        borderRadius: 999,
+        padding: 2,
     },
     contactInfo: {
         flex: 1,
-        marginLeft: spacing.md,
+        justifyContent: 'center',
     },
     contactName: {
-        fontSize: typography.fontSize.base,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.text.primary,
+        fontSize: typography.fontSize.lg,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.primary[600],
+        marginBottom: 2,
     },
     contactRole: {
         fontSize: typography.fontSize.sm,
-        color: colors.text.secondary,
-        marginTop: 2,
+        color: '#9E97CA',
+        fontWeight: '500',
     },
-    aiTag: {
-        flexDirection: 'row',
+    separator: {
+        height: 1,
+        backgroundColor: '#E5E7EB',
+        marginLeft: 70, // Align with text
+    },
+    fab: {
+        position: 'absolute',
+        bottom: spacing['4xl'],
+        right: spacing.xl,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: '#F2A090', // Salmon
         alignItems: 'center',
-        marginTop: spacing.xs,
-        backgroundColor: colors.accent[50],
-        paddingHorizontal: spacing.sm,
-        paddingVertical: 2,
-        borderRadius: borderRadius.sm,
-        alignSelf: 'flex-start',
-    },
-    aiTagText: {
-        fontSize: typography.fontSize.xs,
-        color: colors.accent[700],
-        marginLeft: 4,
-        fontWeight: typography.fontWeight.medium,
+        justifyContent: 'center',
+        ...shadows.lg,
+        elevation: 5,
     },
     emptyContainer: {
         flex: 1,
@@ -223,7 +272,7 @@ const styles = StyleSheet.create({
     },
     emptyTitle: {
         fontSize: typography.fontSize.xl,
-        fontWeight: typography.fontWeight.semibold,
+        fontWeight: typography.fontWeight.bold,
         color: colors.text.primary,
         marginTop: spacing.lg,
         marginBottom: spacing.xs,

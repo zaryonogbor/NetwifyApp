@@ -12,6 +12,7 @@ export interface UserProfile {
     linkedIn?: string;
     website?: string;
     bio?: string;
+    gender?: 'Male' | 'Female' | 'Other';
     createdAt: Date;
     updatedAt: Date;
 }

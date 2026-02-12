@@ -2,6 +2,7 @@
 
 export const colors = {
     // Primary - Dark Purple
+    // Primary - Dark Purple
     primary: {
         50: '#ECEBFA',
         100: '#D5D2EB',
@@ -15,12 +16,12 @@ export const colors = {
         900: '#1E1B2D',
     },
 
-    // Secondary - Soft Peach
+    // Secondary - Soft Peach / Orange
     secondary: {
         50: '#FDF8F3',
         100: '#FAEDDF',
-        200: '#F7E2CB',
-        300: '#F4D7B7',
+        200: '#F7E2CB', // Light Orange
+        300: '#F9DCC4', // Peach (My QR Background - Tweaked)
         400: '#F2CCA3',
         500: '#F0C38E', // Main Secondary
         600: '#D8AF80',
@@ -31,7 +32,7 @@ export const colors = {
 
     // Accent - Salmon
     accent: {
-        500: '#F1AA9B', // Main Accent
+        500: '#F2A090', // Main Accent (Scan QR Background - Tweaked)
         600: '#D9998B',
     },
 

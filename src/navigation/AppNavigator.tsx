@@ -29,7 +29,7 @@ const MainTabs = () => {
             detachInactiveScreens={false}
             screenOptions={{
                 headerShown: false,
-                tabBarActiveTintColor: colors.primary[600],
+                tabBarActiveTintColor: colors.accent[500],
                 tabBarInactiveTintColor: colors.text.tertiary,
                 tabBarStyle: {
                     backgroundColor: colors.background.primary,

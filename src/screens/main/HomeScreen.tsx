@@ -9,7 +9,7 @@ import {
     Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { collection, query, where, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../config/firebase';
@@ -23,44 +23,6 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const [recentContacts, setRecentContacts] = useState<Contact[]>([]);
     const [pendingRequests, setPendingRequests] = useState<ConnectionRequest[]>([]);
     const [refreshing, setRefreshing] = useState(false);
-    const [processingRequest, setProcessingRequest] = useState<string | null>(null);
-
-    const handleAcceptRequest = async (request: ConnectionRequest) => {
-        if (!user) return;
-        setProcessingRequest(request.id);
-        try {
-            await acceptConnectionRequest(request, user.uid);
-            Alert.alert('Connected!', `You are now connected with ${request.fromUserProfile.displayName}`);
-        } catch (error) {
-            Alert.alert('Error', 'Failed to accept request. Please try again.');
-        } finally {
-            setProcessingRequest(null);
-        }
-    };
-
-    const handleDeclineRequest = async (request: ConnectionRequest) => {
-        Alert.alert(
-            'Decline Request',
-            `Are you sure you want to decline the request from ${request.fromUserProfile.displayName}?`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Decline',
-                    style: 'destructive',
-                    onPress: async () => {
-                        setProcessingRequest(request.id);
-                        try {
-                            await declineConnectionRequest(request.id);
-                        } catch (error) {
-                            Alert.alert('Error', 'Failed to decline request.');
-                        } finally {
-                            setProcessingRequest(null);
-                        }
-                    },
-                },
-            ]
-        );
-    };
 
     useEffect(() => {
         if (!user) return;
@@ -107,13 +69,6 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         setTimeout(() => setRefreshing(false), 1000);
     };
 
-    const getGreeting = () => {
-        const hour = new Date().getHours();
-        if (hour < 12) return 'Good morning';
-        if (hour < 18) return 'Good afternoon';
-        return 'Good evening';
-    };
-
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             <ScrollView
@@ -126,99 +81,62 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             >
                 {/* Header */}
                 <View style={styles.header}>
-                    <View>
-                        <Text style={styles.greeting}>{getGreeting()}</Text>
-                        <Text style={styles.userName}>{userProfile?.displayName || 'Welcome'}</Text>
+                    <View style={styles.greetingPill}>
+                        <Avatar
+                            source={userProfile?.photoURL}
+                            name={userProfile?.displayName}
+                            size="md"
+                        />
+                        <Text style={styles.greetingText}>
+                            Hi, <Text style={styles.userName}>{userProfile?.displayName?.split(' ')[0] || 'User'}!</Text>
+                        </Text>
                     </View>
-                    <Avatar
-                        source={userProfile?.photoURL}
-                        name={userProfile?.displayName}
-                        size="md"
-                    />
+
+                    <View style={styles.headerActions}>
+                        <TouchableOpacity style={styles.iconButton}>
+                            <View style={styles.notificationBadge} />
+                            <Feather name="bell" size={24} color={colors.primary[600]} />
+                        </TouchableOpacity>
+                    </View>
                 </View>
+
+                {/* Main Action Text */}
+                <Text style={styles.actionTitle}>Add a connection</Text>
 
                 {/* Quick Actions */}
                 <View style={styles.quickActions}>
                     <TouchableOpacity
-                        style={styles.quickActionCard}
+                        style={[styles.actionCard, { backgroundColor: '#F9DCC4' }]} // Peach
                         onPress={() => navigation.navigate('MyQR')}
-                        activeOpacity={0.7}
+                        activeOpacity={0.8}
                     >
-                        <View style={[styles.quickActionIcon, { backgroundColor: colors.primary[100] }]}>
-                            <Feather name="maximize" size={24} color={colors.primary[600]} />
+                        <View style={styles.actionIconContainer}>
+                            <MaterialCommunityIcons name="qrcode-scan" size={32} color={colors.primary[800]} />
                         </View>
-                        <Text style={styles.quickActionLabel}>My QR Code</Text>
+                        <Text style={styles.actionLabel}>My QR Code</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
-                        style={styles.quickActionCard}
+                        style={[styles.actionCard, { backgroundColor: '#F2A090' }]} // Salmon
                         onPress={() => navigation.navigate('QRScanner')}
-                        activeOpacity={0.7}
+                        activeOpacity={0.8}
                     >
-                        <View style={[styles.quickActionIcon, { backgroundColor: colors.accent[100] }]}>
-                            <Feather name="camera" size={24} color={colors.accent[600]} />
+                        <View style={styles.actionIconContainer}>
+                            <Feather name="camera" size={32} color={colors.primary[800]} />
                         </View>
-                        <Text style={styles.quickActionLabel}>Scan QR</Text>
+                        <Text style={styles.actionLabel}>Scan QR Code</Text>
                     </TouchableOpacity>
                 </View>
 
-                {/* Pending Requests */}
-                {pendingRequests.length > 0 && (
-                    <View style={styles.section}>
-                        <View style={styles.sectionHeader}>
-                            <Text style={styles.sectionTitle}>Pending Requests</Text>
-                            <View style={styles.badge}>
-                                <Text style={styles.badgeText}>{pendingRequests.length}</Text>
-                            </View>
-                        </View>
-                        {pendingRequests.map((request) => (
-                            <Card key={request.id} style={styles.requestCard}>
-                                <View style={styles.requestContent}>
-                                    <Avatar
-                                        source={request.fromUserProfile.photoURL}
-                                        name={request.fromUserProfile.displayName}
-                                        size="md"
-                                    />
-                                    <View style={styles.requestInfo}>
-                                        <Text style={styles.requestName}>
-                                            {request.fromUserProfile.displayName}
-                                        </Text>
-                                        <Text style={styles.requestRole}>
-                                            {request.fromUserProfile.jobTitle}
-                                            {request.fromUserProfile.company && ` at ${request.fromUserProfile.company}`}
-                                        </Text>
-                                    </View>
-                                </View>
-                                <View style={styles.requestActions}>
-                                    <Button
-                                        title="Accept"
-                                        onPress={() => handleAcceptRequest(request)}
-                                        size="sm"
-                                        loading={processingRequest === request.id}
-                                        disabled={processingRequest !== null}
-                                        style={{ marginRight: spacing.sm }}
-                                    />
-                                    <Button
-                                        title="Decline"
-                                        onPress={() => handleDeclineRequest(request)}
-                                        variant="outline"
-                                        size="sm"
-                                        disabled={processingRequest !== null}
-                                    />
-                                </View>
-                            </Card>
-                        ))}
-                    </View>
-                )}
-
-                {/* Recent Contacts */}
+                {/* Recent Connections */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Recent Connections</Text>
                         <TouchableOpacity onPress={() => navigation.navigate('Contacts')}>
-                            <Text style={styles.seeAll}>See all</Text>
+                            <Text style={styles.seeAll}>See All</Text>
                         </TouchableOpacity>
                     </View>
+
                     {recentContacts.length > 0 ? (
                         recentContacts.map((contact) => (
                             <TouchableOpacity
@@ -226,40 +144,33 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                                 activeOpacity={0.7}
                                 onPress={() => navigation.navigate('ContactDetail', { contactId: contact.id })}
                             >
-                                <Card style={styles.contactCard}>
-                                    <Avatar
-                                        source={contact.photoURL}
-                                        name={contact.displayName}
-                                        size="md"
-                                    />
+                                <View style={styles.contactItem}>
+                                    <View style={styles.avatarContainer}>
+                                        <Avatar
+                                            source={contact.photoURL}
+                                            name={contact.displayName}
+                                            size="lg"
+                                        />
+                                    </View>
                                     <View style={styles.contactInfo}>
                                         <Text style={styles.contactName}>{contact.displayName}</Text>
-                                        <Text style={styles.contactRole}>
+                                        <Text style={styles.contactRole} numberOfLines={1}>
                                             {contact.jobTitle}
-                                            {contact.company && ` at ${contact.company}`}
+                                            {contact.company && ` At ${contact.company}`}
                                         </Text>
                                     </View>
-                                    <Feather name="chevron-right" size={20} color={colors.text.tertiary} />
-                                </Card>
+                                </View>
+                                <View style={styles.separator} />
                             </TouchableOpacity>
                         ))
                     ) : (
-                        <Card style={styles.emptyCard}>
-                            <Feather name="users" size={40} color={colors.neutral[300]} />
-                            <Text style={styles.emptyTitle}>No connections yet</Text>
-                            <Text style={styles.emptyText}>
-                                Scan a QR code or share yours to start networking
-                            </Text>
-                            <Button
-                                title="Scan QR Code"
-                                onPress={() => navigation.navigate('QRScanner')}
-                                variant="secondary"
-                                size="sm"
-                                style={{ marginTop: spacing.md }}
-                            />
-                        </Card>
+                        <View style={styles.emptyContainer}>
+                            <Feather name="users" size={32} color={colors.neutral[300]} />
+                            <Text style={styles.emptyText}>No recent connections</Text>
+                        </View>
                     )}
                 </View>
+
             </ScrollView>
         </SafeAreaView>
     );
@@ -268,55 +179,87 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background.secondary,
+        backgroundColor: '#FAFAFA', // Very light gray background
     },
     scrollView: {
         flex: 1,
     },
     scrollContent: {
-        paddingHorizontal: spacing.xl,
+        paddingHorizontal: spacing.lg,
+        paddingTop: spacing.lg,
         paddingBottom: spacing['3xl'],
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: spacing.xl,
+        marginBottom: spacing.xl,
     },
-    greeting: {
-        fontSize: typography.fontSize.base,
-        color: colors.text.secondary,
+    greetingPill: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#ECEBFA', // Light purple pill background
+        paddingVertical: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        borderRadius: borderRadius.full,
+        gap: spacing.sm,
+    },
+    greetingText: {
+        fontSize: typography.fontSize.lg,
+        color: colors.primary[600],
+        marginRight: spacing.sm,
     },
     userName: {
-        fontSize: typography.fontSize['2xl'],
+        fontWeight: typography.fontWeight.bold,
+        color: colors.primary[600],
+    },
+    headerActions: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+    },
+    iconButton: {
+        padding: spacing.xs,
+        position: 'relative',
+    },
+    notificationBadge: {
+        position: 'absolute',
+        top: 6,
+        right: 6,
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: '#EF4444', // Red dot
+        zIndex: 1,
+        borderWidth: 1.5,
+        borderColor: '#FAFAFA',
+    },
+    actionTitle: {
+        fontSize: typography.fontSize.lg,
         fontWeight: typography.fontWeight.bold,
         color: colors.text.primary,
+        marginBottom: spacing.md,
     },
     quickActions: {
         flexDirection: 'row',
         gap: spacing.md,
-        marginBottom: spacing.xl,
+        marginBottom: spacing['2xl'],
     },
-    quickActionCard: {
+    actionCard: {
         flex: 1,
-        backgroundColor: colors.background.primary,
-        borderRadius: borderRadius.lg,
+        height: 160,
+        borderRadius: borderRadius.xl,
         padding: spacing.lg,
         alignItems: 'center',
-        ...shadows.sm,
-    },
-    quickActionIcon: {
-        width: 56,
-        height: 56,
-        borderRadius: borderRadius.lg,
-        alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: spacing.sm,
     },
-    quickActionLabel: {
-        fontSize: typography.fontSize.sm,
-        fontWeight: typography.fontWeight.medium,
-        color: colors.text.primary,
+    actionIconContainer: {
+        marginBottom: spacing.md,
+    },
+    actionLabel: {
+        fontSize: typography.fontSize.base,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.primary[800],
     },
     section: {
         marginBottom: spacing.xl,
@@ -325,91 +268,58 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: spacing.md,
+        marginBottom: spacing.lg,
     },
     sectionTitle: {
         fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.text.primary,
+        fontWeight: typography.fontWeight.bold, // Matches "Recent Connections"
+        color: colors.primary[600],
     },
     seeAll: {
-        fontSize: typography.fontSize.sm,
-        color: colors.primary[600],
-        fontWeight: typography.fontWeight.medium,
-    },
-    badge: {
-        backgroundColor: colors.primary[600],
-        borderRadius: 10,
-        paddingHorizontal: spacing.sm,
-        paddingVertical: 2,
-        minWidth: 20,
-        alignItems: 'center',
-    },
-    badgeText: {
-        color: colors.text.inverse,
-        fontSize: typography.fontSize.xs,
-        fontWeight: typography.fontWeight.bold,
-    },
-    requestCard: {
-        marginBottom: spacing.sm,
-    },
-    requestContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: spacing.md,
-    },
-    requestInfo: {
-        flex: 1,
-        marginLeft: spacing.md,
-    },
-    requestName: {
         fontSize: typography.fontSize.base,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.text.primary,
+        color: '#F2A090', // Salmon color for "See All"
+        fontWeight: '500',
     },
-    requestRole: {
-        fontSize: typography.fontSize.sm,
-        color: colors.text.secondary,
-        marginTop: 2,
-    },
-    requestActions: {
-        flexDirection: 'row',
-    },
-    contactCard: {
+    contactItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginBottom: spacing.sm,
+        paddingVertical: spacing.sm,
+    },
+    avatarContainer: {
+        marginRight: spacing.md,
+        borderWidth: 2,
+        borderColor: '#F2A090', // Salmon border around avatar
+        borderRadius: 999,
+        padding: 2,
     },
     contactInfo: {
         flex: 1,
-        marginLeft: spacing.md,
+        justifyContent: 'center',
     },
     contactName: {
-        fontSize: typography.fontSize.base,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.text.primary,
+        fontSize: typography.fontSize.lg,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.primary[600],
+        marginBottom: 2,
     },
     contactRole: {
         fontSize: typography.fontSize.sm,
-        color: colors.text.secondary,
-        marginTop: 2,
+        color: '#9E97CA', // Light purple/grey text
+        fontWeight: '500',
     },
-    emptyCard: {
+    separator: {
+        height: 1,
+        backgroundColor: '#E5E7EB', // Light divider
+        marginLeft: 70, // Offset to align with text
+        marginVertical: spacing.xs,
+    },
+    emptyContainer: {
         alignItems: 'center',
-        paddingVertical: spacing['2xl'],
-    },
-    emptyTitle: {
-        fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.text.primary,
-        marginTop: spacing.md,
-        marginBottom: spacing.xs,
+        padding: spacing.xl,
     },
     emptyText: {
-        fontSize: typography.fontSize.sm,
+        marginTop: spacing.sm,
         color: colors.text.secondary,
-        textAlign: 'center',
-        maxWidth: '80%',
     },
 });
 
