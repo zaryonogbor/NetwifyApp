@@ -6,6 +6,7 @@ import {
     TouchableOpacity,
     Alert,
     Dimensions,
+    StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -14,7 +15,7 @@ import { doc, getDoc, collection, addDoc } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../config/firebase';
 import { Button, Card, Avatar } from '../../components/ui';
-import { colors, typography, spacing } from '../../theme';
+import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
 import { QRCodeData, UserProfile, ConnectionRequest } from '../../types';
 
 const { width } = Dimensions.get('window');
@@ -28,7 +29,6 @@ export const QRScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     const [sending, setSending] = useState(false);
 
     useEffect(() => {
-        // Automatically request permission on mount if not determined
         if (!permission) {
             requestPermission();
         }
@@ -55,7 +55,6 @@ export const QRScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                 return;
             }
 
-            // Fetch the scanned user's profile
             const userDoc = await getDoc(doc(db, 'users', qrData.userId));
             if (!userDoc.exists()) {
                 Alert.alert('User Not Found', 'This user profile does not exist.', [
@@ -78,7 +77,6 @@ export const QRScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
         setSending(true);
         try {
-            // Create connection request
             const request: Omit<ConnectionRequest, 'id'> = {
                 fromUserId: user.uid,
                 toUserId: scannedUser.uid,
@@ -124,69 +122,81 @@ export const QRScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
     if (!permission.granted) {
         return (
-            <SafeAreaView style={styles.container}>
+            <SafeAreaView style={styles.permissionContainer}>
                 <View style={styles.centerContent}>
-                    <Feather name="camera-off" size={64} color={colors.neutral[400]} />
+                    <View style={styles.iconCircle}>
+                        <Feather name="camera-off" size={40} color={colors.accent[500]} />
+                    </View>
                     <Text style={styles.permissionTitle}>Camera Access Needed</Text>
                     <Text style={styles.permissionText}>
-                        Please enable camera access in your settings to scan QR codes.
+                        Please enable camera access in your settings to scan QR codes and connect with others.
                     </Text>
                     <Button
-                        title="Open Settings"
+                        title="Grant Permission"
                         onPress={requestPermission}
-                        style={{ marginTop: spacing.xl }}
+                        style={styles.permissionButton}
                     />
                 </View>
             </SafeAreaView>
         );
     }
 
-    // Show scanned user confirmation
     if (scannedUser) {
         return (
-            <SafeAreaView style={styles.container} edges={['top']}>
+            <SafeAreaView style={styles.confirmContainer} edges={['top']}>
+                <StatusBar barStyle="dark-content" />
                 <View style={styles.header}>
-                    <TouchableOpacity onPress={handleCancel}>
+                    <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
                         <Feather name="x" size={24} color={colors.text.primary} />
                     </TouchableOpacity>
                     <Text style={styles.headerTitle}>Connect</Text>
-                    <View style={{ width: 24 }} />
+                    <View style={{ width: 44 }} />
                 </View>
 
                 <View style={styles.confirmContent}>
-                    <Card variant="elevated" style={styles.userCard}>
-                        <Avatar
-                            source={scannedUser.photoURL}
-                            name={scannedUser.displayName}
-                            size="xl"
-                        />
-                        <Text style={styles.userName}>{scannedUser.displayName}</Text>
-                        <Text style={styles.userRole}>
-                            {scannedUser.jobTitle}
-                            {scannedUser.company && ` at ${scannedUser.company}`}
-                        </Text>
+                    <View style={styles.cardWrapper}>
+                        <View style={styles.avatarOverlap}>
+                            <Avatar
+                                source={scannedUser.photoURL}
+                                name={scannedUser.displayName}
+                                size="xl"
+                                style={styles.avatarBorder}
+                            />
+                        </View>
+                        <Card variant="elevated" style={styles.userCard}>
+                            <View style={{ height: 40 }} />
+                            <Text style={styles.userName}>{scannedUser.displayName}</Text>
+                            <Text style={styles.userRole}>
+                                {scannedUser.jobTitle}
+                            </Text>
+                            {scannedUser.company && (
+                                <Text style={styles.userCompany}>{scannedUser.company}</Text>
+                            )}
 
-                        {scannedUser.bio && (
-                            <Text style={styles.userBio}>{scannedUser.bio}</Text>
-                        )}
-                    </Card>
+                            {scannedUser.bio && (
+                                <View style={styles.bioContainer}>
+                                    <Text style={styles.userBio}>{scannedUser.bio}</Text>
+                                </View>
+                            )}
+                        </Card>
+                    </View>
 
-                    <Text style={styles.confirmText}>
-                        Send a connection request to {scannedUser.displayName}?
+                    <Text style={styles.confirmInstruction}>
+                        Would you like to send a connection request?
                     </Text>
 
                     <View style={styles.confirmActions}>
                         <Button
-                            title="Cancel"
+                            title="Not Now"
                             onPress={handleCancel}
                             variant="outline"
-                            style={{ flex: 1, marginRight: spacing.sm }}
+                            style={styles.actionButton}
                         />
                         <Button
-                            title="Connect"
+                            title="Send Request"
                             onPress={handleSendRequest}
                             loading={sending}
-                            style={{ flex: 1 }}
+                            style={{ ...styles.actionButton, backgroundColor: colors.accent[500] }}
                         />
                     </View>
                 </View>
@@ -195,54 +205,64 @@ export const QRScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['top']}>
-            {/* Header */}
-            <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Feather name="x" size={24} color={colors.text.inverse} />
-                </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: colors.text.inverse }]}>
-                    Scan QR Code
-                </Text>
-                <View style={{ width: 24 }} />
-            </View>
+        <View style={styles.scannerRoot}>
+            <StatusBar barStyle="light-content" />
+            <CameraView
+                onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
+                barcodeScannerSettings={{
+                    barcodeTypes: ["qr"],
+                }}
+                style={StyleSheet.absoluteFillObject}
+            />
 
-            {/* Scanner */}
-            <View style={styles.scannerContainer}>
-                <CameraView
-                    onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-                    barcodeScannerSettings={{
-                        barcodeTypes: ["qr"],
-                    }}
-                    style={StyleSheet.absoluteFillObject}
-                />
+            <SafeAreaView style={styles.scannerUI} edges={['top']}>
+                <View style={styles.scannerHeader}>
+                    <TouchableOpacity
+                        onPress={() => navigation.goBack()}
+                        style={styles.backButton}
+                    >
+                        <Feather name="arrow-left" size={24} color={colors.text.inverse} />
+                    </TouchableOpacity>
+                    <Text style={styles.scannerTitle}>Scan QR Code</Text>
+                    <View style={{ width: 44 }} />
+                </View>
 
-                {/* Overlay */}
-                <View style={styles.overlay}>
-                    <View style={styles.scannerFrame}>
-                        <View style={[styles.corner, styles.topLeft]} />
-                        <View style={[styles.corner, styles.topRight]} />
-                        <View style={[styles.corner, styles.bottomLeft]} />
-                        <View style={[styles.corner, styles.bottomRight]} />
+                <View style={styles.scannerOverlay}>
+                    <View style={styles.frameContainer}>
+                        <View style={styles.scannerFrame}>
+                            <View style={[styles.corner, styles.topLeft]} />
+                            <View style={[styles.corner, styles.topRight]} />
+                            <View style={[styles.corner, styles.bottomLeft]} />
+                            <View style={[styles.corner, styles.bottomRight]} />
+                            <View style={styles.scanLine} />
+                        </View>
                     </View>
                 </View>
-            </View>
 
-            {/* Instructions */}
-            <View style={styles.instructions}>
-                <Text style={styles.instructionsTitle}>Point camera at a QR code</Text>
-                <Text style={styles.instructionsText}>
-                    Align the QR code within the frame to scan
-                </Text>
-            </View>
-        </SafeAreaView>
+                <View style={styles.scannerFooter}>
+                    <Text style={styles.footerText}>Align the QR code within the frame</Text>
+                </View>
+            </SafeAreaView>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.neutral[900],
+        backgroundColor: colors.background.primary,
+    },
+    permissionContainer: {
+        flex: 1,
+        backgroundColor: colors.background.primary,
+    },
+    confirmContainer: {
+        flex: 1,
+        backgroundColor: colors.background.primary,
+    },
+    scannerRoot: {
+        flex: 1,
+        backgroundColor: '#000',
     },
     centerContent: {
         flex: 1,
@@ -250,17 +270,32 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         paddingHorizontal: spacing['2xl'],
     },
+    iconCircle: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: colors.primary[50], // Light purple background
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: spacing.xl,
+    },
     permissionTitle: {
         fontSize: typography.fontSize.xl,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.text.primary,
-        marginTop: spacing.lg,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.primary[600],
         marginBottom: spacing.sm,
+        textAlign: 'center',
     },
     permissionText: {
         fontSize: typography.fontSize.base,
         color: colors.text.secondary,
         textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: spacing['2xl'],
+    },
+    permissionButton: {
+        width: '100%',
+        backgroundColor: colors.accent[500],
     },
     header: {
         flexDirection: 'row',
@@ -271,105 +306,76 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.text.primary,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.primary[600],
     },
-    scannerContainer: {
-        flex: 1,
-        position: 'relative',
-    },
-    overlay: {
-        ...StyleSheet.absoluteFillObject,
+    closeButton: {
+        width: 44,
+        height: 44,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(0,0,0,0.5)',
-    },
-    scannerFrame: {
-        width: SCANNER_SIZE,
-        height: SCANNER_SIZE,
-        backgroundColor: 'transparent',
-        position: 'relative',
-    },
-    corner: {
-        position: 'absolute',
-        width: 30,
-        height: 30,
-        borderColor: colors.primary[400],
-    },
-    topLeft: {
-        top: 0,
-        left: 0,
-        borderTopWidth: 4,
-        borderLeftWidth: 4,
-        borderTopLeftRadius: 8,
-    },
-    topRight: {
-        top: 0,
-        right: 0,
-        borderTopWidth: 4,
-        borderRightWidth: 4,
-        borderTopRightRadius: 8,
-    },
-    bottomLeft: {
-        bottom: 0,
-        left: 0,
-        borderBottomWidth: 4,
-        borderLeftWidth: 4,
-        borderBottomLeftRadius: 8,
-    },
-    bottomRight: {
-        bottom: 0,
-        right: 0,
-        borderBottomWidth: 4,
-        borderRightWidth: 4,
-        borderBottomRightRadius: 8,
-    },
-    instructions: {
-        padding: spacing['2xl'],
-        alignItems: 'center',
-    },
-    instructionsTitle: {
-        fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.text.inverse,
-        marginBottom: spacing.xs,
-    },
-    instructionsText: {
-        fontSize: typography.fontSize.base,
-        color: colors.neutral[400],
-        textAlign: 'center',
     },
     confirmContent: {
         flex: 1,
+        alignItems: 'center',
         paddingHorizontal: spacing.xl,
-        paddingTop: spacing['2xl'],
-        backgroundColor: colors.background.secondary,
+        paddingTop: spacing['3xl'],
+    },
+    cardWrapper: {
+        width: '100%',
+        maxWidth: 400,
+        alignItems: 'center',
+        marginBottom: spacing['2xl'],
+    },
+    avatarOverlap: {
+        zIndex: 1,
+        marginBottom: -40,
+        ...shadows.lg,
+    },
+    avatarBorder: {
+        borderWidth: 4,
+        borderColor: colors.background.primary,
     },
     userCard: {
+        width: '100%',
+        backgroundColor: colors.primary[600],
+        borderRadius: borderRadius.xl,
+        padding: spacing.xl,
         alignItems: 'center',
-        paddingVertical: spacing['2xl'],
-        marginBottom: spacing.xl,
+        ...shadows.lg,
     },
     userName: {
-        fontSize: typography.fontSize.xl,
+        fontSize: typography.fontSize['2xl'],
         fontWeight: typography.fontWeight.bold,
-        color: colors.text.primary,
-        marginTop: spacing.md,
+        color: colors.text.inverse,
+        marginBottom: spacing.xs,
     },
     userRole: {
         fontSize: typography.fontSize.base,
-        color: colors.text.secondary,
-        marginTop: spacing.xs,
+        fontWeight: typography.fontWeight.medium,
+        color: colors.accent[500],
+        marginBottom: spacing.xs,
+    },
+    userCompany: {
+        fontSize: typography.fontSize.sm,
+        color: colors.primary[200],
+        marginBottom: spacing.md,
+    },
+    bioContainer: {
+        width: '100%',
+        paddingTop: spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(255, 255, 255, 0.1)',
+        marginTop: spacing.md,
     },
     userBio: {
         fontSize: typography.fontSize.sm,
-        color: colors.text.secondary,
+        color: colors.text.inverse,
         textAlign: 'center',
-        marginTop: spacing.md,
-        paddingHorizontal: spacing.lg,
         lineHeight: 20,
+        opacity: 0.9,
     },
-    confirmText: {
+    confirmInstruction: {
         fontSize: typography.fontSize.base,
         color: colors.text.secondary,
         textAlign: 'center',
@@ -377,6 +383,108 @@ const styles = StyleSheet.create({
     },
     confirmActions: {
         flexDirection: 'row',
+        gap: spacing.md,
+        width: '100%',
+        maxWidth: 400,
+    },
+    actionButton: {
+        flex: 1,
+    },
+    scannerUI: {
+        flex: 1,
+        backgroundColor: 'transparent',
+    },
+    scannerHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: spacing.xl,
+        paddingVertical: spacing.md,
+    },
+    backButton: {
+        width: 44,
+        height: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0,0,0,0.3)',
+        borderRadius: 22,
+    },
+    scannerTitle: {
+        fontSize: typography.fontSize.lg,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.text.inverse,
+        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 3,
+    },
+    scannerOverlay: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    frameContainer: {
+        width: SCANNER_SIZE,
+        height: SCANNER_SIZE,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    scannerFrame: {
+        width: SCANNER_SIZE,
+        height: SCANNER_SIZE,
+        position: 'relative',
+    },
+    corner: {
+        position: 'absolute',
+        width: 40,
+        height: 40,
+        borderColor: colors.accent[500],
+    },
+    topLeft: {
+        top: 0,
+        left: 0,
+        borderTopWidth: 5,
+        borderLeftWidth: 5,
+        borderTopLeftRadius: 15,
+    },
+    topRight: {
+        top: 0,
+        right: 0,
+        borderTopWidth: 5,
+        borderRightWidth: 5,
+        borderTopRightRadius: 15,
+    },
+    bottomLeft: {
+        bottom: 0,
+        left: 0,
+        borderBottomWidth: 5,
+        borderLeftWidth: 5,
+        borderBottomLeftRadius: 15,
+    },
+    bottomRight: {
+        bottom: 0,
+        right: 0,
+        borderBottomWidth: 5,
+        borderRightWidth: 5,
+        borderBottomRightRadius: 15,
+    },
+    scanLine: {
+        position: 'absolute',
+        width: '100%',
+        height: 2,
+        backgroundColor: colors.accent[500],
+        opacity: 0.5,
+        top: '50%',
+    },
+    scannerFooter: {
+        padding: spacing['2xl'],
+        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.3)',
+    },
+    footerText: {
+        fontSize: typography.fontSize.base,
+        color: colors.text.inverse,
+        textAlign: 'center',
+        fontWeight: typography.fontWeight.medium,
     },
 });
 

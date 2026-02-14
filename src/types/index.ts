@@ -11,6 +11,7 @@ export interface UserProfile {
     phone?: string;
     linkedIn?: string;
     website?: string;
+    address?: string;
     bio?: string;
     gender?: 'Male' | 'Female' | 'Other';
     createdAt: Date;
@@ -30,6 +31,7 @@ export interface Contact {
     phone?: string;
     linkedIn?: string;
     website?: string;
+    address?: string;
     bio?: string;
     notes?: string; // Personal notes about this contact
     tags?: string[];
@@ -86,6 +88,7 @@ export type RootStackParamList = {
     AIFollowUp: { contactId: string };
     EditProfile: undefined;
     QRScanner: undefined;
+    Notifications: undefined;
 };
 
 export type MainTabParamList = {
@@ -93,4 +96,5 @@ export type MainTabParamList = {
     Contacts: undefined;
     MyQR: undefined;
     Profile: undefined;
+    Notifications: undefined;
 };

@@ -68,6 +68,7 @@ export const CreateProfileScreen: React.FC<Props> = ({ navigation }) => {
     const [linkedIn, setLinkedIn] = useState('');
     const [website, setWebsite] = useState('');
     const [bio, setBio] = useState('');
+    const [address, setAddress] = useState('');
     const [photoUri, setPhotoUri] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<{
@@ -153,6 +154,7 @@ export const CreateProfileScreen: React.FC<Props> = ({ navigation }) => {
                 linkedIn: linkedIn.trim() || null,
                 website: website.trim() || null,
                 bio: bio.trim() || null,
+                address: address.trim() || null,
                 gender: gender || null,
                 createdAt: new Date(),
                 updatedAt: new Date(),
@@ -325,6 +327,14 @@ export const CreateProfileScreen: React.FC<Props> = ({ navigation }) => {
                             autoCapitalize="none"
                             keyboardType="url"
                             leftIcon={<Feather name="globe" size={20} color={colors.text.tertiary} />}
+                        />
+
+                        <Input
+                            label="Office Address"
+                            placeholder="e.g. 123 Business St, Suite 100"
+                            value={address}
+                            onChangeText={setAddress}
+                            leftIcon={<Feather name="map-pin" size={20} color={colors.text.tertiary} />}
                         />
 
                         <Input

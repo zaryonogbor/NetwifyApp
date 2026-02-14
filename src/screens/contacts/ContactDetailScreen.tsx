@@ -8,13 +8,14 @@ import {
     Alert,
     Linking,
     TextInput,
+    StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { Card, Avatar, Button } from '../../components/ui';
-import { colors, typography, spacing, borderRadius } from '../../theme';
+import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
 import { Contact } from '../../types';
 
 interface Props {
@@ -61,7 +62,6 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         setLoadingSummary(true);
         try {
             // This would call a Firebase Cloud Function
-            // For now, simulate a delay
             await new Promise(resolve => setTimeout(resolve, 2000));
 
             const mockSummary = `${contact?.displayName} is a ${contact?.jobTitle} at ${contact?.company}. Connected at a networking event.`;
@@ -99,7 +99,7 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         return (
             <SafeAreaView style={styles.container}>
                 <View style={styles.loadingContainer}>
-                    <Text>Loading...</Text>
+                    <Text style={styles.loadingText}>Loading connection...</Text>
                 </View>
             </SafeAreaView>
         );
@@ -107,14 +107,16 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
+            <StatusBar barStyle="dark-content" />
+
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()}>
-                    <Feather name="arrow-left" size={24} color={colors.text.primary} />
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                    <Feather name="arrow-left" size={24} color={colors.primary[600]} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Contact</Text>
-                <TouchableOpacity>
-                    <Feather name="more-vertical" size={24} color={colors.text.primary} />
+                <Text style={styles.headerTitle}>Contact Detail</Text>
+                <TouchableOpacity style={styles.moreButton}>
+                    <Feather name="more-vertical" size={24} color={colors.primary[600]} />
                 </TouchableOpacity>
             </View>
 
@@ -123,57 +125,65 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Profile Card */}
-                <Card variant="elevated" style={styles.profileCard}>
-                    <Avatar
-                        source={contact.photoURL}
-                        name={contact.displayName}
-                        size="xl"
-                    />
-                    <Text style={styles.profileName}>{contact.displayName}</Text>
-                    <Text style={styles.profileRole}>
-                        {contact.jobTitle}
-                        {contact.company && ` at ${contact.company}`}
-                    </Text>
-
-                    {/* Quick Actions */}
-                    <View style={styles.quickActions}>
-                        {contact.phone && (
-                            <TouchableOpacity style={styles.quickAction} onPress={handleCall}>
-                                <View style={styles.quickActionIcon}>
-                                    <Feather name="phone" size={20} color={colors.primary[600]} />
-                                </View>
-                                <Text style={styles.quickActionLabel}>Call</Text>
-                            </TouchableOpacity>
-                        )}
-                        {contact.email && (
-                            <TouchableOpacity style={styles.quickAction} onPress={handleEmail}>
-                                <View style={styles.quickActionIcon}>
-                                    <Feather name="mail" size={20} color={colors.primary[600]} />
-                                </View>
-                                <Text style={styles.quickActionLabel}>Email</Text>
-                            </TouchableOpacity>
-                        )}
-                        {contact.linkedIn && (
-                            <TouchableOpacity
-                                style={styles.quickAction}
-                                onPress={() => openLink(`https://${contact.linkedIn}`)}
-                            >
-                                <View style={styles.quickActionIcon}>
-                                    <Feather name="linkedin" size={20} color={colors.primary[600]} />
-                                </View>
-                                <Text style={styles.quickActionLabel}>LinkedIn</Text>
-                            </TouchableOpacity>
-                        )}
+                {/* Profile Section */}
+                <View style={styles.profileWrapper}>
+                    <View style={styles.avatarOverlap}>
+                        <Avatar
+                            source={contact.photoURL}
+                            name={contact.displayName}
+                            size="xl"
+                            style={styles.avatarBorder}
+                        />
                     </View>
-                </Card>
+                    <Card variant="elevated" style={styles.profileCard}>
+                        <View style={{ height: 40 }} />
+                        <Text style={styles.profileName}>{contact.displayName}</Text>
+                        <Text style={styles.profileRole}>
+                            {contact.jobTitle}
+                        </Text>
+                        {contact.company && (
+                            <Text style={styles.profileCompany}>{contact.company}</Text>
+                        )}
 
-                {/* AI Summary */}
+                        {/* Quick Actions */}
+                        <View style={styles.quickActions}>
+                            {contact.phone && (
+                                <TouchableOpacity style={styles.quickAction} onPress={handleCall}>
+                                    <View style={styles.quickActionIcon}>
+                                        <Feather name="phone" size={20} color={colors.accent[500]} />
+                                    </View>
+                                    <Text style={styles.quickActionLabel}>Call</Text>
+                                </TouchableOpacity>
+                            )}
+                            {contact.email && (
+                                <TouchableOpacity style={styles.quickAction} onPress={handleEmail}>
+                                    <View style={styles.quickActionIcon}>
+                                        <Feather name="mail" size={20} color={colors.accent[500]} />
+                                    </View>
+                                    <Text style={styles.quickActionLabel}>Email</Text>
+                                </TouchableOpacity>
+                            )}
+                            {contact.linkedIn && (
+                                <TouchableOpacity
+                                    style={styles.quickAction}
+                                    onPress={() => openLink(`https://${contact.linkedIn}`)}
+                                >
+                                    <View style={styles.quickActionIcon}>
+                                        <Feather name="linkedin" size={20} color={colors.accent[500]} />
+                                    </View>
+                                    <Text style={styles.quickActionLabel}>LinkedIn</Text>
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    </Card>
+                </View>
+
+                {/* AI Summary Section */}
                 <Card style={styles.section}>
                     <View style={styles.sectionHeader}>
                         <View style={styles.aiLabel}>
-                            <Feather name="zap" size={14} color={colors.accent[600]} />
-                            <Text style={styles.aiLabelText}>AI Summary</Text>
+                            <Feather name="zap" size={14} color={colors.accent[500]} />
+                            <Text style={styles.aiLabelText}>AI SUMMARY</Text>
                         </View>
                     </View>
 
@@ -182,86 +192,48 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                     ) : (
                         <View style={styles.noSummary}>
                             <Text style={styles.noSummaryText}>
-                                No AI summary yet. Generate one to get quick insights about this contact.
+                                No AI summary yet. Insights will appear here once generated.
                             </Text>
                             <Button
-                                title={loadingSummary ? 'Generating...' : 'Generate Summary'}
+                                title={loadingSummary ? 'Generating...' : 'Generate AI Summary'}
                                 onPress={handleGenerateSummary}
                                 variant="secondary"
                                 size="sm"
                                 loading={loadingSummary}
-                                icon={<Feather name="zap" size={14} color={colors.accent[600]} />}
-                                style={{ marginTop: spacing.md }}
+                                icon={<Feather name="zap" size={14} color={colors.accent[500]} />}
+                                style={styles.aiButton}
                             />
                         </View>
                     )}
                 </Card>
 
-                {/* AI Follow-up */}
+                {/* AI Follow-up Section */}
                 <Card style={styles.section}>
                     <View style={styles.sectionHeader}>
                         <View style={styles.aiLabel}>
-                            <Feather name="zap" size={14} color={colors.accent[600]} />
-                            <Text style={styles.aiLabelText}>AI Follow-up</Text>
+                            <Feather name="message-square" size={14} color={colors.accent[500]} />
+                            <Text style={styles.aiLabelText}>AI FOLLOW-UP</Text>
                         </View>
                     </View>
                     <Text style={styles.followUpDescription}>
-                        Generate a personalized follow-up message based on your connection.
+                        Draft a personalized follow-up message instantly based on your meeting context.
                     </Text>
                     <Button
-                        title="Generate Follow-up Message"
+                        title="Draft Follow-up Message"
                         onPress={() => navigation.navigate('AIFollowUp', { contactId })}
                         variant="outline"
                         size="sm"
+                        style={styles.followUpButton}
                         icon={<Feather name="edit-3" size={14} color={colors.primary[600]} />}
-                        style={{ marginTop: spacing.md }}
                     />
                 </Card>
 
-                {/* Contact Info */}
-                <Card style={styles.section}>
-                    <Text style={styles.sectionTitle}>Contact Information</Text>
-
-                    {contact.email && (
-                        <View style={styles.infoItem}>
-                            <Feather name="mail" size={18} color={colors.text.tertiary} />
-                            <Text style={styles.infoValue}>{contact.email}</Text>
-                        </View>
-                    )}
-
-                    {contact.phone && (
-                        <View style={styles.infoItem}>
-                            <Feather name="phone" size={18} color={colors.text.tertiary} />
-                            <Text style={styles.infoValue}>{contact.phone}</Text>
-                        </View>
-                    )}
-
-                    {contact.company && (
-                        <View style={styles.infoItem}>
-                            <Feather name="briefcase" size={18} color={colors.text.tertiary} />
-                            <Text style={styles.infoValue}>{contact.company}</Text>
-                        </View>
-                    )}
-
-                    {contact.linkedIn && (
-                        <TouchableOpacity
-                            style={styles.infoItem}
-                            onPress={() => openLink(`https://${contact.linkedIn}`)}
-                        >
-                            <Feather name="linkedin" size={18} color={colors.text.tertiary} />
-                            <Text style={[styles.infoValue, { color: colors.primary[600] }]}>
-                                {contact.linkedIn}
-                            </Text>
-                        </TouchableOpacity>
-                    )}
-                </Card>
-
-                {/* Personal Notes */}
+                {/* Personal Notes Section */}
                 <Card style={styles.section}>
                     <View style={styles.sectionHeader}>
-                        <Text style={styles.sectionTitle}>Personal Notes</Text>
+                        <Text style={styles.sectionTitle}>PERSONAL NOTES</Text>
                         {!isEditingNotes && (
-                            <TouchableOpacity onPress={() => setIsEditingNotes(true)}>
+                            <TouchableOpacity onPress={() => setIsEditingNotes(true)} style={styles.editNotesButton}>
                                 <Feather name="edit-2" size={16} color={colors.primary[600]} />
                             </TouchableOpacity>
                         )}
@@ -273,33 +245,96 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                                 style={styles.notesInput}
                                 value={notes}
                                 onChangeText={setNotes}
-                                placeholder="Add notes about this contact..."
+                                placeholder="Add context, where you met, or discussion points..."
                                 placeholderTextColor={colors.text.tertiary}
                                 multiline
                                 numberOfLines={4}
                             />
                             <View style={styles.notesActions}>
-                                <Button
-                                    title="Cancel"
+                                <TouchableOpacity
                                     onPress={() => {
                                         setNotes(contact.notes || '');
                                         setIsEditingNotes(false);
                                     }}
-                                    variant="ghost"
-                                    size="sm"
-                                />
+                                    style={styles.cancelNotes}
+                                >
+                                    <Text style={styles.cancelNotesText}>Cancel</Text>
+                                </TouchableOpacity>
                                 <Button
-                                    title="Save"
+                                    title="Save Notes"
                                     onPress={handleSaveNotes}
                                     size="sm"
+                                    style={styles.saveNotesButton}
                                 />
                             </View>
                         </View>
                     ) : (
                         <Text style={styles.notesText}>
-                            {notes || 'No notes yet. Tap the edit icon to add notes about this contact.'}
+                            {notes || 'Add personal notes about this contact to help the AI generate better summaries.'}
                         </Text>
                     )}
+                </Card>
+
+                {/* Contact Info Details */}
+                <Card style={styles.section}>
+                    <Text style={styles.sectionTitle}>CONTACT DETAILS</Text>
+
+                    {contact.email && (
+                        <View style={styles.infoItem}>
+                            <View style={styles.infoIcon}>
+                                <Feather name="mail" size={16} color={colors.primary[400]} />
+                            </View>
+                            <View>
+                                <Text style={styles.infoLabel}>Email</Text>
+                                <Text style={styles.infoValue}>{contact.email}</Text>
+                            </View>
+                        </View>
+                    )}
+
+                    {contact.phone && (
+                        <View style={styles.infoItem}>
+                            <View style={styles.infoIcon}>
+                                <Feather name="phone" size={16} color={colors.primary[400]} />
+                            </View>
+                            <View>
+                                <Text style={styles.infoLabel}>Phone</Text>
+                                <Text style={styles.infoValue}>{contact.phone}</Text>
+                            </View>
+                        </View>
+                    )}
+
+                    {contact.linkedIn && (
+                        <TouchableOpacity
+                            style={styles.infoItem}
+                            onPress={() => openLink(`https://${contact.linkedIn}`)}
+                        >
+                            <View style={styles.infoIcon}>
+                                <Feather name="linkedin" size={16} color={colors.primary[400]} />
+                            </View>
+                            <View>
+                                <Text style={styles.infoLabel}>LinkedIn</Text>
+                                <Text style={[styles.infoValue, { color: colors.accent[500] }]}>
+                                    {contact.linkedIn}
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
+                    )}
+
+                    <View style={styles.infoItem}>
+                        <View style={styles.infoIcon}>
+                            <Feather name="calendar" size={16} color={colors.primary[400]} />
+                        </View>
+                        <View>
+                            <Text style={styles.infoLabel}>Connected On</Text>
+                            <Text style={styles.infoValue}>
+                                {new Date(contact.connectedAt).toLocaleDateString(undefined, {
+                                    year: 'numeric',
+                                    month: 'long',
+                                    day: 'numeric'
+                                })}
+                            </Text>
+                        </View>
+                    </View>
                 </Card>
             </ScrollView>
         </SafeAreaView>
@@ -309,12 +344,16 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background.secondary,
+        backgroundColor: colors.background.primary,
     },
     loadingContainer: {
         flex: 1,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    loadingText: {
+        color: colors.text.secondary,
+        fontSize: typography.fontSize.base,
     },
     header: {
         flexDirection: 'row',
@@ -325,36 +364,71 @@ const styles = StyleSheet.create({
     },
     headerTitle: {
         fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.text.primary,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.primary[600],
+    },
+    backButton: {
+        width: 44,
+        height: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    moreButton: {
+        width: 44,
+        height: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     scrollView: {
         flex: 1,
     },
     scrollContent: {
         paddingHorizontal: spacing.xl,
-        paddingBottom: spacing['3xl'],
+        paddingBottom: spacing['4xl'],
+    },
+    profileWrapper: {
+        alignItems: 'center',
+        marginTop: spacing['2xl'],
+        marginBottom: spacing.xl,
+    },
+    avatarOverlap: {
+        zIndex: 1,
+        marginBottom: -40,
+        ...shadows.lg,
+    },
+    avatarBorder: {
+        borderWidth: 4,
+        borderColor: colors.background.primary,
     },
     profileCard: {
+        width: '100%',
         alignItems: 'center',
         paddingVertical: spacing['2xl'],
-        marginBottom: spacing.lg,
+        backgroundColor: colors.primary[600],
+        borderRadius: borderRadius.xl,
+        ...shadows.lg,
     },
     profileName: {
-        fontSize: typography.fontSize.xl,
+        fontSize: typography.fontSize['2xl'],
         fontWeight: typography.fontWeight.bold,
-        color: colors.text.primary,
-        marginTop: spacing.md,
+        color: colors.text.inverse,
+        marginBottom: spacing.xs,
     },
     profileRole: {
         fontSize: typography.fontSize.base,
-        color: colors.text.secondary,
-        marginTop: spacing.xs,
+        fontWeight: typography.fontWeight.medium,
+        color: colors.accent[500],
+        marginBottom: spacing.xs,
+    },
+    profileCompany: {
+        fontSize: typography.fontSize.sm,
+        color: colors.primary[200],
+        marginBottom: spacing.lg,
     },
     quickActions: {
         flexDirection: 'row',
-        marginTop: spacing.xl,
         gap: spacing['2xl'],
+        marginTop: spacing.md,
     },
     quickAction: {
         alignItems: 'center',
@@ -363,17 +437,22 @@ const styles = StyleSheet.create({
         width: 48,
         height: 48,
         borderRadius: 24,
-        backgroundColor: colors.primary[50],
+        backgroundColor: 'rgba(255, 255, 255, 0.1)',
         alignItems: 'center',
         justifyContent: 'center',
         marginBottom: spacing.xs,
     },
     quickActionLabel: {
-        fontSize: typography.fontSize.sm,
-        color: colors.text.secondary,
+        fontSize: typography.fontSize.xs,
+        color: colors.text.inverse,
+        fontWeight: typography.fontWeight.medium,
     },
     section: {
         marginBottom: spacing.lg,
+        padding: spacing.xl,
+        borderRadius: borderRadius.lg,
+        backgroundColor: colors.background.secondary,
+        ...shadows.sm,
     },
     sectionHeader: {
         flexDirection: 'row',
@@ -382,73 +461,118 @@ const styles = StyleSheet.create({
         marginBottom: spacing.md,
     },
     sectionTitle: {
-        fontSize: typography.fontSize.base,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.text.primary,
+        fontSize: 12,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.primary[400],
+        letterSpacing: 1.2,
     },
     aiLabel: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.accent[50],
+        backgroundColor: 'rgba(242, 160, 144, 0.1)',
         paddingHorizontal: spacing.sm,
         paddingVertical: 4,
         borderRadius: borderRadius.sm,
-        gap: 4,
+        gap: 6,
     },
     aiLabelText: {
-        fontSize: typography.fontSize.sm,
-        fontWeight: typography.fontWeight.medium,
-        color: colors.accent[700],
+        fontSize: 10,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.accent[500],
+        letterSpacing: 1,
     },
     summaryText: {
         fontSize: typography.fontSize.base,
         color: colors.text.primary,
-        lineHeight: 22,
+        lineHeight: 24,
     },
     noSummary: {
         alignItems: 'center',
-        paddingVertical: spacing.md,
+        paddingVertical: spacing.sm,
     },
     noSummaryText: {
         fontSize: typography.fontSize.sm,
         color: colors.text.secondary,
         textAlign: 'center',
+        lineHeight: 20,
+    },
+    aiButton: {
+        marginTop: spacing.lg,
+        borderColor: colors.accent[500],
+        borderRadius: borderRadius.md,
     },
     followUpDescription: {
         fontSize: typography.fontSize.sm,
         color: colors.text.secondary,
         lineHeight: 20,
+        marginBottom: spacing.sm,
     },
-    infoItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: spacing.sm,
-        gap: spacing.md,
+    followUpButton: {
+        marginTop: spacing.sm,
     },
-    infoValue: {
-        fontSize: typography.fontSize.base,
-        color: colors.text.primary,
+    editNotesButton: {
+        padding: spacing.xs,
     },
     notesInput: {
-        backgroundColor: colors.background.secondary,
+        backgroundColor: colors.background.primary,
         borderRadius: borderRadius.md,
         padding: spacing.md,
         fontSize: typography.fontSize.base,
         color: colors.text.primary,
-        minHeight: 100,
+        minHeight: 120,
         textAlignVertical: 'top',
+        borderWidth: 1,
+        borderColor: colors.border.light,
     },
     notesActions: {
         flexDirection: 'row',
         justifyContent: 'flex-end',
-        gap: spacing.sm,
+        alignItems: 'center',
+        gap: spacing.lg,
         marginTop: spacing.md,
+    },
+    cancelNotes: {
+        padding: spacing.sm,
+    },
+    cancelNotesText: {
+        color: colors.text.secondary,
+        fontWeight: typography.fontWeight.medium,
+    },
+    saveNotesButton: {
+        width: 120,
     },
     notesText: {
         fontSize: typography.fontSize.base,
         color: colors.text.secondary,
         lineHeight: 22,
         fontStyle: 'italic',
+    },
+    infoItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: spacing.md,
+        gap: spacing.lg,
+    },
+    infoIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        backgroundColor: colors.background.primary,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: colors.border.light,
+    },
+    infoLabel: {
+        fontSize: 11,
+        color: colors.text.tertiary,
+        fontWeight: typography.fontWeight.medium,
+        marginBottom: 2,
+    },
+    infoValue: {
+        fontSize: typography.fontSize.base,
+        color: colors.text.primary,
+        fontWeight: typography.fontWeight.medium,
     },
 });
 

@@ -24,12 +24,7 @@ import { RootStackParamList } from '../../types';
 
 const JOB_TITLES = [
     { label: 'Software Engineer', value: 'Software Engineer' },
-    { label: 'Full Stack Developer', value: 'Full Stack Developer' },
-    { label: 'Backend Developer', value: 'Backend Developer' },
-    { label: 'Frontend Developer', value: 'Frontend Developer' },
-    { label: 'Mobile Developer', value: 'Mobile Developer' },
     { label: 'Product Manager', value: 'Product Manager' },
-    { label: 'Product Designer', value: 'Product Designer' },
     { label: 'Project Manager', value: 'Project Manager' },
     { label: 'Data Scientist', value: 'Data Scientist' },
     { label: 'UX Designer', value: 'UX Designer' },
@@ -45,6 +40,12 @@ const JOB_TITLES = [
     { label: 'Other', value: 'Other' },
 ];
 
+const GENDER_OPTIONS = [
+    { label: 'Male', value: 'Male' },
+    { label: 'Female', value: 'Female' },
+    { label: 'Other', value: 'Other' },
+];
+
 type EditProfileNavigationProp = NativeStackNavigationProp<RootStackParamList, 'EditProfile'>;
 
 interface Props {
@@ -54,39 +55,65 @@ interface Props {
 export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
     const { user, userProfile, refreshUserProfile } = useAuth();
 
-    const [displayName, setDisplayName] = useState(userProfile?.displayName || '');
-    const [jobTitle, setJobTitle] = useState(userProfile?.jobTitle || '');
+    const [firstName, setFirstName] = useState(userProfile?.firstName || '');
+    const [lastName, setLastName] = useState(userProfile?.lastName || '');
+    const [email, setEmail] = useState(userProfile?.email || user?.email || '');
     const [selectedJobTitle, setSelectedJobTitle] = useState('');
     const [customJobTitle, setCustomJobTitle] = useState('');
     const [isOtherSelected, setIsOtherSelected] = useState(false);
     const [company, setCompany] = useState(userProfile?.company || '');
-    const [phone, setPhone] = useState(userProfile?.phone || '');
     const [countryCode, setCountryCode] = useState('+234');
     const [phoneNumber, setPhoneNumber] = useState('');
+    const [gender, setGender] = useState(userProfile?.gender || '');
     const [linkedIn, setLinkedIn] = useState(userProfile?.linkedIn || '');
+    const [website, setWebsite] = useState(userProfile?.website || '');
     const [bio, setBio] = useState(userProfile?.bio || '');
+    const [address, setAddress] = useState(userProfile?.address || '');
     const [photoUri, setPhotoUri] = useState<string | null>(userProfile?.photoURL || null);
     const [loading, setLoading] = useState(false);
-    const [errors, setErrors] = useState<{ displayName?: string }>({});
+    const [errors, setErrors] = useState<{
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        jobTitle?: string;
+        company?: string;
+        gender?: string;
+        bio?: string;
+    }>({});
 
     useEffect(() => {
         if (userProfile) {
-            setDisplayName(userProfile.displayName);
+            // Derivation logic for first/last name if missing (for legacy or broken profiles)
+            const splitDisplayName = (userProfile.displayName || '').split(' ');
+            const derivedFirstName = splitDisplayName[0] || '';
+            const derivedLastName = splitDisplayName.slice(1).join(' ') || '';
+
+            setFirstName(userProfile.firstName || derivedFirstName);
+            setLastName(userProfile.lastName || derivedLastName);
+
+            // Priority: userProfile.email > user.email
+            setEmail(userProfile.email || user?.email || '');
+
             setCompany(userProfile.company || '');
-            setPhone(userProfile.phone || '');
             setLinkedIn(userProfile.linkedIn || '');
+            setWebsite(userProfile.website || '');
+            setAddress(userProfile.address || '');
             setBio(userProfile.bio || '');
+            setGender(userProfile.gender || '');
             setPhotoUri(userProfile.photoURL || null);
 
             // Handle phone number and country code parsing
             const fullPhone = userProfile.phone || '';
-            if (fullPhone.startsWith('+')) {
-                // Try to find the longest matching country code
-                const codes = ['+971', '+966', '+234', '+233', '+254', '+27', '+91', '+86', '+81', '+33', '+49', '+61', '+44', '+1', '+55', '+52', '+82'];
-                let foundCode = '+234';
+            if (fullPhone && fullPhone.startsWith('+')) {
+                // List of supported country codes from CountryCodePicker
+                const codes = ['+234', '+233', '+254', '+27', '+971', '+966', '+91', '+86', '+81', '+33', '+49', '+61', '+44', '+1', '+55', '+52', '+82'];
+                // Sort by length descending to match longest possible code (e.g., +971 before +9)
+                const sortedCodes = [...codes].sort((a, b) => b.length - a.length);
+
+                let foundCode = '+234'; // Default
                 let phonePart = fullPhone;
 
-                for (const c of codes) {
+                for (const c of sortedCodes) {
                     if (fullPhone.startsWith(c)) {
                         foundCode = c;
                         phonePart = fullPhone.slice(c.length);
@@ -101,18 +128,21 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
 
             // Handle job title initialization
             const profileJobTitle = userProfile.jobTitle || '';
-            const matchingOption = JOB_TITLES.find(opt => opt.value === profileJobTitle);
+            if (profileJobTitle) {
+                const matchingOption = JOB_TITLES.find(opt => opt.value === profileJobTitle);
 
-            if (matchingOption && profileJobTitle !== 'Other') {
-                setSelectedJobTitle(profileJobTitle);
-                setIsOtherSelected(false);
-            } else if (profileJobTitle) {
-                setSelectedJobTitle('Other');
-                setCustomJobTitle(profileJobTitle);
-                setIsOtherSelected(true);
+                if (matchingOption && profileJobTitle !== 'Other') {
+                    setSelectedJobTitle(profileJobTitle);
+                    setIsOtherSelected(false);
+                    setCustomJobTitle('');
+                } else {
+                    setSelectedJobTitle('Other');
+                    setCustomJobTitle(profileJobTitle);
+                    setIsOtherSelected(true);
+                }
             }
         }
-    }, [userProfile]);
+    }, [userProfile, user?.email]);
 
     const pickImage = async () => {
         const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -135,7 +165,6 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
     };
 
     const uploadPhoto = async (uri: string): Promise<string> => {
-        // If it's already a firebase URL, skip upload
         if (uri.startsWith('http')) return uri;
 
         const response = await fetch(uri);
@@ -148,9 +177,18 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
     const validateForm = (): boolean => {
         const newErrors: typeof errors = {};
 
-        if (!displayName.trim()) {
-            newErrors.displayName = 'Name is required';
+        if (!firstName.trim()) newErrors.firstName = 'First Name is required';
+        if (!lastName.trim()) newErrors.lastName = 'Last Name is required';
+        if (!email.trim()) {
+            newErrors.email = 'Email is required';
+        } else if (!/^\S+@\S+\.\S+$/.test(email)) {
+            newErrors.email = 'Invalid email format';
         }
+        if (!isOtherSelected && !selectedJobTitle) newErrors.jobTitle = 'Job Title is required';
+        if (isOtherSelected && !customJobTitle.trim()) newErrors.jobTitle = 'Job Title is required';
+        if (!company.trim()) newErrors.company = 'Company is required';
+        if (!gender) newErrors.gender = 'Gender is required';
+        if (!bio.trim()) newErrors.bio = 'About You is required';
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -168,23 +206,35 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
             }
 
             const finalJobTitle = isOtherSelected ? customJobTitle.trim() : selectedJobTitle;
+            const displayName = `${firstName.trim()} ${lastName.trim()}`;
 
             await updateDoc(doc(db, 'users', user.uid), {
-                displayName: displayName.trim(),
+                firstName: firstName.trim(),
+                lastName: lastName.trim(),
+                displayName: displayName,
+                email: email.trim().toLowerCase(),
                 photoURL: photoURL || null,
                 jobTitle: finalJobTitle || null,
                 company: company.trim() || null,
                 phone: phoneNumber.trim() ? `${countryCode}${phoneNumber.trim()}` : null,
                 linkedIn: linkedIn.trim() || null,
+                website: website.trim() || null,
+                address: address.trim() || null,
+                gender: gender || null,
                 bio: bio.trim() || null,
                 updatedAt: new Date(),
             });
 
             await refreshUserProfile();
 
-            Alert.alert('Success', 'Profile updated successfully', [
-                { text: 'OK', onPress: () => navigation.goBack() }
-            ]);
+            if (Platform.OS === 'web') {
+                alert('Profile updated successfully');
+                navigation.goBack();
+            } else {
+                Alert.alert('Success', 'Profile updated successfully', [
+                    { text: 'OK', onPress: () => navigation.goBack() }
+                ]);
+            }
         } catch (error) {
             console.error('Error updating profile:', error);
             Alert.alert('Error', 'Failed to update profile. Please try again.');
@@ -207,10 +257,10 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
                     {/* Header */}
                     <View style={styles.header}>
                         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                            <Feather name="arrow-left" size={24} color={colors.text.primary} />
+                            <Feather name="arrow-left" size={24} color={colors.primary[600]} />
                         </TouchableOpacity>
-                        <Text style={styles.title}>Edit Profile</Text>
-                        <View style={{ width: 24 }} />
+                        <Text style={styles.headerTitle}>Edit Profile</Text>
+                        <View style={{ width: 44 }} />
                     </View>
 
                     {/* Photo Picker */}
@@ -220,7 +270,7 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
                         ) : (
                             <View style={styles.photoPlaceholder}>
                                 <Feather name="camera" size={32} color={colors.primary[400]} />
-                                <Text style={styles.photoPlaceholderText}>Add Photo</Text>
+                                <Text style={styles.photoPlaceholderText}>Update Photo</Text>
                             </View>
                         )}
                         <View style={styles.editBadge}>
@@ -231,17 +281,42 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
                     {/* Form */}
                     <View style={styles.form}>
                         <Input
-                            label="Full Name *"
-                            placeholder="Enter your name"
-                            value={displayName}
-                            onChangeText={setDisplayName}
+                            label="First Name"
+                            required
+                            placeholder="Eg. John"
+                            value={firstName}
+                            onChangeText={setFirstName}
                             autoCapitalize="words"
-                            error={errors.displayName}
+                            error={errors.firstName}
                             leftIcon={<Feather name="user" size={20} color={colors.text.tertiary} />}
+                        />
+
+                        <Input
+                            label="Last Name"
+                            required
+                            placeholder="Eg. Doe"
+                            value={lastName}
+                            onChangeText={setLastName}
+                            autoCapitalize="words"
+                            error={errors.lastName}
+                            leftIcon={<Feather name="user" size={20} color={colors.text.tertiary} />}
+                        />
+
+                        <Input
+                            label="Email"
+                            required
+                            placeholder="Eg. john@example.com"
+                            value={email}
+                            onChangeText={setEmail}
+                            keyboardType="email-address"
+                            autoCapitalize="none"
+                            error={errors.email}
+                            leftIcon={<Feather name="mail" size={20} color={colors.text.tertiary} />}
                         />
 
                         <SearchableDropdown
                             label="Job Title"
+                            required
                             placeholder="Select your job title"
                             options={JOB_TITLES}
                             value={selectedJobTitle}
@@ -249,32 +324,49 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
                                 setSelectedJobTitle(val);
                                 setIsOtherSelected(val === 'Other');
                             }}
+                            error={errors.jobTitle}
                             leftIcon={<Feather name="briefcase" size={20} color={colors.text.tertiary} />}
                         />
 
                         {isOtherSelected && (
                             <Input
                                 label="Custom Job Title"
+                                required
                                 placeholder="Enter your job title"
                                 value={customJobTitle}
                                 onChangeText={setCustomJobTitle}
                                 autoCapitalize="words"
+                                error={errors.jobTitle}
                                 leftIcon={<Feather name="edit-3" size={20} color={colors.text.tertiary} />}
                             />
                         )}
 
                         <Input
                             label="Company"
+                            required
                             placeholder="e.g., Acme Inc."
                             value={company}
                             onChangeText={setCompany}
                             autoCapitalize="words"
+                            error={errors.company}
                             leftIcon={<Feather name="home" size={20} color={colors.text.tertiary} />}
+                        />
+
+                        <SearchableDropdown
+                            label="Gender"
+                            required
+                            placeholder="Select Gender"
+                            options={GENDER_OPTIONS}
+                            value={gender}
+                            onSelect={setGender}
+                            error={errors.gender}
+                            leftIcon={<Feather name="users" size={20} color={colors.text.tertiary} />}
                         />
 
                         <View style={styles.phoneFieldContainer}>
                             <CountryCodePicker
                                 label="Phone"
+                                required
                                 value={countryCode}
                                 onSelect={setCountryCode}
                             />
@@ -301,10 +393,30 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
                         />
 
                         <Input
+                            label="Website"
+                            placeholder="www.yourwebsite.com"
+                            value={website}
+                            onChangeText={setWebsite}
+                            autoCapitalize="none"
+                            keyboardType="url"
+                            leftIcon={<Feather name="globe" size={20} color={colors.text.tertiary} />}
+                        />
+
+                        <Input
+                            label="Office Address"
+                            placeholder="e.g. 123 Business St, Suite 100"
+                            value={address}
+                            onChangeText={setAddress}
+                            leftIcon={<Feather name="map-pin" size={20} color={colors.text.tertiary} />}
+                        />
+
+                        <Input
                             label="Short Bio"
+                            required
                             placeholder="Tell people a bit about yourself..."
                             value={bio}
                             onChangeText={setBio}
+                            error={errors.bio}
                             multiline
                             numberOfLines={3}
                             style={{ height: 80, textAlignVertical: 'top' }}
@@ -337,7 +449,7 @@ const styles = StyleSheet.create({
         flexGrow: 1,
         paddingHorizontal: spacing.xl,
         paddingTop: spacing.md,
-        paddingBottom: spacing['3xl'],
+        paddingBottom: spacing['4xl'],
     },
     header: {
         flexDirection: 'row',
@@ -346,12 +458,15 @@ const styles = StyleSheet.create({
         marginBottom: spacing.xl,
     },
     backButton: {
-        padding: spacing.xs,
+        width: 44,
+        height: 44,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
-    title: {
-        fontSize: typography.fontSize.xl,
+    headerTitle: {
+        fontSize: typography.fontSize.lg,
         fontWeight: typography.fontWeight.bold,
-        color: colors.text.primary,
+        color: colors.primary[600],
     },
     photoContainer: {
         alignSelf: 'center',
@@ -400,6 +515,9 @@ const styles = StyleSheet.create({
     },
     saveButton: {
         marginTop: spacing.lg,
+        backgroundColor: colors.primary[600],
+        height: 56,
+        borderRadius: borderRadius.xl,
     },
 });
 

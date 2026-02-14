@@ -12,7 +12,7 @@ import { RootStackParamList, MainTabParamList } from '../types';
 import { LoginScreen, SignUpScreen, CreateProfileScreen } from '../screens/auth';
 
 // Main Screens
-import { HomeScreen, ContactsScreen, MyQRScreen, ProfileScreen, EditProfileScreen } from '../screens/main';
+import { HomeScreen, ContactsScreen, MyQRScreen, ProfileScreen, EditProfileScreen, NotificationsScreen } from '../screens/main';
 
 // Contact Screens
 import { ContactDetailScreen, AIFollowUpScreen } from '../screens/contacts';
@@ -129,6 +129,11 @@ export const AppNavigator = () => {
                                 animation: 'slide_from_bottom',
                                 presentation: 'fullScreenModal',
                             }}
+                        />
+                        <Stack.Screen
+                            name="Notifications"
+                            component={NotificationsScreen}
+                            options={{ animation: 'slide_from_right' }}
                         />
                         <Stack.Screen
                             name="EditProfile"
