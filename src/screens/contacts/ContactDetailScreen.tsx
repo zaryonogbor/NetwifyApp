@@ -30,6 +30,7 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     const [notes, setNotes] = useState('');
     const [isEditingNotes, setIsEditingNotes] = useState(false);
     const [loadingSummary, setLoadingSummary] = useState(false);
+    const [isSummaryDisabled, setIsSummaryDisabled] = useState(false);
 
     useEffect(() => {
         fetchContact();
@@ -181,33 +182,62 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                 </View>
 
                 {/* AI Summary Section */}
-                <Card style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                        <View style={styles.aiLabel}>
-                            <Feather name="zap" size={14} color={colors.accent[500]} />
-                            <Text style={styles.aiLabelText}>AI SUMMARY</Text>
+                {!isSummaryDisabled && (
+                    <Card style={styles.section}>
+                        <View style={styles.sectionHeader}>
+                            <View style={styles.aiLabel}>
+                                <Feather name="zap" size={14} color={colors.accent[500]} />
+                                <Text style={styles.aiLabelText}>AI SUMMARY</Text>
+                            </View>
+                            {contact.aiSummary && (
+                                <View style={styles.aiHeaderActions}>
+                                    <TouchableOpacity
+                                        onPress={handleGenerateSummary}
+                                        disabled={loadingSummary}
+                                        style={styles.aiHeaderButton}
+                                    >
+                                        <Feather name="refresh-cw" size={14} color={colors.primary[400]} />
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        onPress={() => setIsSummaryDisabled(true)}
+                                        style={styles.aiHeaderButton}
+                                    >
+                                        <Feather name="eye-off" size={14} color={colors.primary[400]} />
+                                    </TouchableOpacity>
+                                </View>
+                            )}
                         </View>
-                    </View>
 
-                    {contact.aiSummary ? (
-                        <Text style={styles.summaryText}>{contact.aiSummary}</Text>
-                    ) : (
-                        <View style={styles.noSummary}>
-                            <Text style={styles.noSummaryText}>
-                                No AI summary yet. Insights will appear here once generated.
-                            </Text>
-                            <Button
-                                title={loadingSummary ? 'Generating...' : 'Generate AI Summary'}
-                                onPress={handleGenerateSummary}
-                                variant="secondary"
-                                size="sm"
-                                loading={loadingSummary}
-                                icon={<Feather name="zap" size={14} color={colors.accent[500]} />}
-                                style={styles.aiButton}
-                            />
-                        </View>
-                    )}
-                </Card>
+                        {contact.aiSummary ? (
+                            <Text style={styles.summaryText}>{contact.aiSummary}</Text>
+                        ) : (
+                            <View style={styles.noSummary}>
+                                <Text style={styles.noSummaryText}>
+                                    No AI summary yet. Insights will appear here once generated.
+                                </Text>
+                                <Button
+                                    title={loadingSummary ? 'Generating...' : 'Generate AI Summary'}
+                                    onPress={handleGenerateSummary}
+                                    variant="secondary"
+                                    size="sm"
+                                    loading={loadingSummary}
+                                    icon={<Feather name="zap" size={14} color={colors.accent[500]} />}
+                                    style={styles.aiButton}
+                                />
+                            </View>
+                        )}
+                    </Card>
+                )}
+
+                {isSummaryDisabled && (
+                    <TouchableOpacity
+                        style={styles.enableSummaryButton}
+                        onPress={() => setIsSummaryDisabled(false)}
+                    >
+                        <Feather name="zap" size={14} color={colors.accent[500]} />
+                        <Text style={styles.enableSummaryText}>Show AI Summary</Text>
+                    </TouchableOpacity>
+                )}
 
                 {/* AI Follow-up Section */}
                 <Card style={styles.section}>
@@ -502,6 +532,26 @@ const styles = StyleSheet.create({
         marginTop: spacing.lg,
         borderColor: colors.accent[500],
         borderRadius: borderRadius.md,
+    },
+    aiHeaderActions: {
+        flexDirection: 'row',
+        gap: spacing.md,
+    },
+    aiHeaderButton: {
+        padding: spacing.xs,
+    },
+    enableSummaryButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing.sm,
+        paddingVertical: spacing.sm,
+        marginBottom: spacing.lg,
+    },
+    enableSummaryText: {
+        fontSize: typography.fontSize.sm,
+        color: colors.accent[500],
+        fontWeight: typography.fontWeight.semibold,
     },
     followUpDescription: {
         fontSize: typography.fontSize.sm,

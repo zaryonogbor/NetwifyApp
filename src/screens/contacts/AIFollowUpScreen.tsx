@@ -23,14 +23,14 @@ interface Props {
     route: { params: { contactId: string } };
 }
 
-type Tone = 'professional' | 'friendly' | 'casual';
-type Purpose = 'follow_up' | 'thank_you' | 'meeting_request' | 'custom';
+type Tone = 'professional' | 'friendly';
+type Channel = 'Email' | 'WhatsApp' | 'LinkedIn';
 
 export const AIFollowUpScreen: React.FC<Props> = ({ navigation, route }) => {
     const { contactId } = route.params;
     const [contact, setContact] = useState<Contact | null>(null);
     const [selectedTone, setSelectedTone] = useState<Tone>('professional');
-    const [selectedPurpose, setPurpose] = useState<Purpose>('follow_up');
+    const [selectedChannel, setSelectedChannel] = useState<Channel>('Email');
     const [generatedMessage, setGeneratedMessage] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
@@ -53,14 +53,12 @@ export const AIFollowUpScreen: React.FC<Props> = ({ navigation, route }) => {
     const tones: { value: Tone; label: string; icon: string }[] = [
         { value: 'professional', label: 'Professional', icon: 'briefcase' },
         { value: 'friendly', label: 'Friendly', icon: 'smile' },
-        { value: 'casual', label: 'Casual', icon: 'coffee' },
     ];
 
-    const purposes: { value: Purpose; label: string; description: string }[] = [
-        { value: 'follow_up', label: 'General Follow-up', description: 'Continue the conversation' },
-        { value: 'thank_you', label: 'Thank You', description: 'Express gratitude for meeting' },
-        { value: 'meeting_request', label: 'Meeting Request', description: 'Schedule a call or meeting' },
-        { value: 'custom', label: 'Custom', description: 'Write your own prompt' },
+    const channels: { value: Channel; label: string; icon: string }[] = [
+        { value: 'Email', label: 'Email', icon: 'mail' },
+        { value: 'WhatsApp', label: 'WhatsApp', icon: 'message-circle' },
+        { value: 'LinkedIn', label: 'LinkedIn', icon: 'linkedin' },
     ];
 
     const handleGenerate = async () => {
@@ -72,7 +70,7 @@ export const AIFollowUpScreen: React.FC<Props> = ({ navigation, route }) => {
             const result = await generateFollowUp({
                 contactId: contact.id,
                 tone: selectedTone,
-                purpose: selectedPurpose
+                channel: selectedChannel
             });
 
             const { message } = result.data as { message: string };
@@ -131,26 +129,30 @@ export const AIFollowUpScreen: React.FC<Props> = ({ navigation, route }) => {
                     </Text>
                 )}
 
-                {/* Purpose Selection */}
+                {/* Channel Selection */}
                 <Card style={styles.section}>
-                    <Text style={styles.sectionTitle}>Message Purpose</Text>
-                    <View style={styles.purposeGrid}>
-                        {purposes.map((purpose) => (
+                    <Text style={styles.sectionTitle}>Channel</Text>
+                    <View style={styles.toneRow}>
+                        {channels.map((channel) => (
                             <TouchableOpacity
-                                key={purpose.value}
+                                key={channel.value}
                                 style={[
-                                    styles.purposeCard,
-                                    selectedPurpose === purpose.value && styles.purposeCardActive,
+                                    styles.toneButton,
+                                    selectedChannel === channel.value && styles.toneButtonActive,
                                 ]}
-                                onPress={() => setPurpose(purpose.value)}
+                                onPress={() => setSelectedChannel(channel.value)}
                             >
+                                <Feather
+                                    name={channel.icon as any}
+                                    size={18}
+                                    color={selectedChannel === channel.value ? colors.primary[600] : colors.text.secondary}
+                                />
                                 <Text style={[
-                                    styles.purposeLabel,
-                                    selectedPurpose === purpose.value && styles.purposeLabelActive,
+                                    styles.toneLabel,
+                                    selectedChannel === channel.value && styles.toneLabelActive,
                                 ]}>
-                                    {purpose.label}
+                                    {channel.label}
                                 </Text>
-                                <Text style={styles.purposeDescription}>{purpose.description}</Text>
                             </TouchableOpacity>
                         ))}
                     </View>

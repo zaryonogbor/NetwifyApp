@@ -19,7 +19,7 @@ async function callGroq(prompt, systemPrompt = "You are a professional networkin
         const response = await axios.post(
             'https://api.groq.com/openai/v1/chat/completions',
             {
-                model: 'llama3-8b-8192',
+                model: 'llama-3.1-8b-instant',
                 messages: [
                     { role: 'system', content: systemPrompt },
                     { role: 'user', content: prompt }
@@ -64,10 +64,10 @@ exports.onConnectionAccepted = functions.firestore
             const toProfile = toProfileSnap.data() || {};
 
             const prompt = `
-                Generate a 1-2 sentence professional relationship insight for a new connection.
+                Summarize who this person is and why they matter professionally based on the meeting context.
                 Person A: ${fromProfile.displayName} (${fromProfile.jobTitle} at ${fromProfile.company}). Bio: ${fromProfile.bio}
                 Person B: ${toProfile.displayName} (${toProfile.jobTitle} at ${toProfile.company}). Bio: ${toProfile.bio}
-                Focus on potential synergies or professional common ground. Keep it concise, warm, and professional.
+                Keep it to 2 sentences.
             `;
 
             const summary = await callGroq(prompt, "You are an expert at professional networking and identifying professional synergies between people.");
@@ -97,7 +97,7 @@ exports.generateFollowUp = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
     }
 
-    const { contactId, tone = 'professional', purpose = 'follow_up' } = data;
+    const { contactId, tone = 'professional', channel = 'Email' } = data;
 
     const contactSnap = await db.collection('contacts').doc(contactId).get();
     if (!contactSnap.exists) {
@@ -109,14 +109,13 @@ exports.generateFollowUp = functions.https.onCall(async (data, context) => {
     const userProfile = userProfileSnap.data();
 
     const prompt = `
-        Draft a short, ${tone} ${purpose.replace('_', ' ')} message.
+        Write a ${tone} follow-up message suitable for ${channel}. Keep it natural and professional.
         From: ${userProfile.displayName} (${userProfile.jobTitle} at ${userProfile.company})
         To: ${contact.displayName} (${contact.jobTitle} at ${contact.company})
-        Context/Summary of relationship: ${contact.aiSummary || 'Recently connected on Netwify.'}
-        Keep it under 3 sentences. No placeholders like [Name], use the names provided.
+        Context/Summary: ${contact.aiSummary || 'Recently connected on Netwify.'}
     `;
 
-    const message = await callGroq(prompt, `You are a helpful assistant drafting a ${tone} networking message.`);
+    const message = await callGroq(prompt, `You are a helpful assistant drafting a ${tone} networking message for ${channel}.`);
 
     return { message };
 });
@@ -151,10 +150,10 @@ exports.generateSummaryManual = functions.https.onCall(async (data, context) => 
     const toProfile = toProfileSnap.data() || {};
 
     const prompt = `
-        Generate a 1-2 sentence professional relationship insight for a new connection.
+        Summarize who this person is and why they matter professionally based on the meeting context.
         Person A: ${fromProfile.displayName} (${fromProfile.jobTitle} at ${fromProfile.company}). Bio: ${fromProfile.bio}
         Person B: ${toProfile.displayName} (${toProfile.jobTitle} at ${toProfile.company}). Bio: ${toProfile.bio}
-        Focus on potential synergies or professional common ground. Keep it concise, warm, and professional.
+        Keep it to 2 sentences.
     `;
 
     const summary = await callGroq(prompt, "You are an expert at professional networking and identifying professional synergies between people.");
