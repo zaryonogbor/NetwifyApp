@@ -13,7 +13,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../../config/firebase';
 import { Card, Avatar, Button } from '../../components/ui';
 import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
 import { Contact } from '../../types';
@@ -61,15 +62,16 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     const handleGenerateSummary = async () => {
         setLoadingSummary(true);
         try {
-            // This would call a Firebase Cloud Function
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            const generateSummaryManual = httpsCallable(functions, 'generateSummaryManual');
+            const result = await generateSummaryManual({ contactId });
 
-            const mockSummary = `${contact?.displayName} is a ${contact?.jobTitle} at ${contact?.company}. Connected at a networking event.`;
+            const { summary } = result.data as { summary: string };
 
-            await updateDoc(doc(db, 'contacts', contactId), { aiSummary: mockSummary });
-            setContact(prev => prev ? { ...prev, aiSummary: mockSummary } : null);
+            setContact(prev => prev ? { ...prev, aiSummary: summary } : null);
+            Alert.alert('Success', 'AI Summary generated successfully!');
         } catch (error) {
-            Alert.alert('Error', 'Failed to generate summary');
+            console.error('Error generating summary:', error);
+            Alert.alert('Error', 'Failed to generate summary. Please try again later.');
         } finally {
             setLoadingSummary(false);
         }
@@ -469,16 +471,16 @@ const styles = StyleSheet.create({
     aiLabel: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: 'rgba(242, 160, 144, 0.1)',
-        paddingHorizontal: spacing.sm,
-        paddingVertical: 4,
-        borderRadius: borderRadius.sm,
-        gap: 6,
+        backgroundColor: colors.secondary[50],
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.full,
+        gap: 4,
     },
     aiLabelText: {
-        fontSize: 10,
-        fontWeight: typography.fontWeight.bold,
-        color: colors.accent[500],
+        fontSize: typography.fontSize.sm,
+        fontWeight: typography.fontWeight.semibold,
+        color: colors.secondary[700],
         letterSpacing: 1,
     },
     summaryText: {

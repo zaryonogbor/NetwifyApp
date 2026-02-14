@@ -12,7 +12,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../../config/firebase';
 import { Card, Button } from '../../components/ui';
 import { colors, typography, spacing, borderRadius } from '../../theme';
 import { Contact } from '../../types';
@@ -67,37 +68,19 @@ export const AIFollowUpScreen: React.FC<Props> = ({ navigation, route }) => {
 
         setIsGenerating(true);
         try {
-            // This would call a Firebase Cloud Function with Groq API
-            // For now, simulate with mock responses
-            await new Promise(resolve => setTimeout(resolve, 2000));
+            const generateFollowUp = httpsCallable(functions, 'generateFollowUp');
+            const result = await generateFollowUp({
+                contactId: contact.id,
+                tone: selectedTone,
+                purpose: selectedPurpose
+            });
 
-            const templates: Record<Purpose, Record<Tone, string>> = {
-                follow_up: {
-                    professional: `Hi ${contact.displayName},\n\nIt was a pleasure meeting you at the event. I wanted to follow up on our conversation and explore potential opportunities for collaboration.\n\nI'd love to schedule a call to discuss further. Would you be available sometime this week?\n\nBest regards`,
-                    friendly: `Hey ${contact.displayName}!\n\nGreat meeting you! Really enjoyed our chat about ${contact.company || 'your work'}. Would love to grab coffee sometime and continue the conversation.\n\nLet me know when you're free!`,
-                    casual: `Hi ${contact.displayName}!\n\nJust wanted to say it was awesome meeting you. Let's definitely stay in touch!\n\nCheers`,
-                },
-                thank_you: {
-                    professional: `Dear ${contact.displayName},\n\nThank you for taking the time to connect with me. I truly appreciated learning about your work at ${contact.company || 'your organization'}.\n\nI look forward to staying in touch and exploring ways we might collaborate.\n\nBest regards`,
-                    friendly: `Hi ${contact.displayName}!\n\nThanks so much for the great conversation! Really inspired by what you're doing at ${contact.company || 'your company'}.\n\nLet's definitely keep in touch!`,
-                    casual: `Hey ${contact.displayName}!\n\nThanks for the chat - it was really fun meeting you!\n\nCatch you around!`,
-                },
-                meeting_request: {
-                    professional: `Hi ${contact.displayName},\n\nI hope this message finds you well. Following our recent conversation, I'd like to schedule a meeting to discuss potential collaboration opportunities.\n\nWould you be available for a 30-minute call this week? I'm flexible with timing.\n\nBest regards`,
-                    friendly: `Hey ${contact.displayName}!\n\nLoved our chat at the event. I think there's a lot we could explore together. How about we grab coffee or hop on a call soon?\n\nLet me know what works for you!`,
-                    casual: `Hi ${contact.displayName}!\n\nHad a great time chatting with you! Want to meet up sometime and continue the conversation?\n\nLet me know!`,
-                },
-                custom: {
-                    professional: `Hi ${contact.displayName},\n\n[Your message here]\n\nBest regards`,
-                    friendly: `Hey ${contact.displayName}!\n\n[Your message here]\n\nTalk soon!`,
-                    casual: `Hi ${contact.displayName}!\n\n[Your message here]\n\nCheers`,
-                },
-            };
-
-            setGeneratedMessage(templates[selectedPurpose][selectedTone]);
+            const { message } = result.data as { message: string };
+            setGeneratedMessage(message);
             setIsEditing(true);
         } catch (error) {
-            Alert.alert('Error', 'Failed to generate message. Please try again.');
+            console.error('Error generating AI message:', error);
+            Alert.alert('Error', 'Failed to generate message. Please make sure you have an internet connection and try again.');
         } finally {
             setIsGenerating(false);
         }
@@ -282,7 +265,7 @@ const styles = StyleSheet.create({
     aiLabel: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: colors.accent[50],
+        backgroundColor: colors.secondary[50],
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.xs,
         borderRadius: borderRadius.full,
@@ -291,7 +274,7 @@ const styles = StyleSheet.create({
     aiLabelText: {
         fontSize: typography.fontSize.sm,
         fontWeight: typography.fontWeight.semibold,
-        color: colors.accent[700],
+        color: colors.secondary[700],
     },
     scrollView: {
         flex: 1,
