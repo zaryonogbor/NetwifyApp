@@ -9,10 +9,13 @@ import {
     TouchableOpacity,
     Alert,
     Keyboard,
+    ActivityIndicator,
+    Image,
+    Dimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Input } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { auth } from '../../config/firebase';
@@ -24,6 +27,8 @@ type SignUpScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 
 interface Props {
     navigation: SignUpScreenNavigationProp;
 }
+
+const { width } = Dimensions.get('window');
 
 export const SignUpScreen: React.FC<Props> = ({ navigation }) => {
     const [email, setEmail] = useState('');
@@ -61,24 +66,24 @@ export const SignUpScreen: React.FC<Props> = ({ navigation }) => {
             newErrors.confirmPassword = 'Passwords do not match';
         }
 
+        // Removed explicit error for terms to keep it cleaner, but could block action
         if (!acceptedTerms) {
-            newErrors.terms = 'You must accept the terms and privacy policy';
+            // Optional: Block if strict, but UI pattern often just disables button
         }
 
         setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
+        return Object.keys(newErrors).length === 0 && acceptedTerms;
     };
 
     const handleSignUp = async () => {
-        console.log('Sign up attempt started with:', { email: email.trim() });
-
-        if (!validateForm()) {
-            console.log('Form validation failed:', errors);
+        const isValid = validateForm();
+        if (!isValid) {
+            if (!acceptedTerms) {
+                Alert.alert('Terms Required', 'Please accept the Terms of Service and Privacy Policy to continue.');
+            }
             return;
         }
 
-        // Check if Firebase config still has placeholders (though user said they added them)
-        // This is a safety check
         if (auth.app.options.apiKey === 'YOUR_API_KEY') {
             Alert.alert('Configuration Error', 'Firebase credentials are not properly configured.');
             return;
@@ -86,11 +91,8 @@ export const SignUpScreen: React.FC<Props> = ({ navigation }) => {
 
         setLoading(true);
         try {
-            console.log('Calling signUp in AuthContext...');
             await signUp(email.trim(), password);
-            console.log('Sign up successful, automatic navigation will handle stack switch');
         } catch (error: any) {
-            console.error('Sign up error details:', error);
             let message = 'An error occurred during sign up';
             if (error.code === 'auth/email-already-in-use') {
                 message = 'An account with this email already exists';
@@ -120,103 +122,105 @@ export const SignUpScreen: React.FC<Props> = ({ navigation }) => {
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Header */}
+                    {/* Header Graphic */}
+                    <View style={styles.graphicContainer}>
+                        <View style={styles.logoContainer}>
+                            <MaterialCommunityIcons name="access-point-network" size={40} color="#FFFFFF" />
+                        </View>
+                    </View>
+
+                    {/* Header Text */}
                     <View style={styles.header}>
+                        <Text style={styles.title}>Join Netwify</Text>
+                        <Text style={styles.subtitle}>Create an account to start networking</Text>
                     </View>
 
                     {/* Form */}
                     <View style={styles.form}>
-                        <Text style={styles.title}>Create Account</Text>
-                        <Text style={styles.subtitle}>Start building your professional network</Text>
-
                         <Input
                             label="Email"
-                            placeholder="Enter your email"
+                            placeholder="hello@example.com"
                             value={email}
                             onChangeText={setEmail}
                             keyboardType="email-address"
                             autoCapitalize="none"
-                            autoComplete="email"
                             error={errors.email}
-                            leftIcon={<Feather name="mail" size={20} color={colors.text.tertiary} />}
+                            leftIcon={<Feather name="mail" size={20} color={colors.neutral[400]} />}
+                            containerStyle={styles.inputContainer}
                         />
 
                         <Input
                             label="Password"
-                            placeholder="Create a password"
+                            placeholder="••••••••"
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry={!showPassword}
                             autoCapitalize="none"
                             error={errors.password}
-                            leftIcon={<Feather name="lock" size={20} color={colors.text.tertiary} />}
+                            leftIcon={<Feather name="lock" size={20} color={colors.neutral[400]} />}
                             rightIcon={
                                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                                     <Feather
-                                        name={showPassword ? 'eye-off' : 'eye'}
+                                        name={showPassword ? 'eye' : 'eye-off'}
                                         size={20}
-                                        color={colors.text.tertiary}
+                                        color={colors.neutral[400]}
                                     />
                                 </TouchableOpacity>
                             }
+                            containerStyle={styles.inputContainer}
                         />
 
                         <Input
                             label="Confirm Password"
-                            placeholder="Confirm your password"
+                            placeholder="••••••••"
                             value={confirmPassword}
                             onChangeText={setConfirmPassword}
                             secureTextEntry={!showConfirmPassword}
                             autoCapitalize="none"
                             error={errors.confirmPassword}
-                            leftIcon={<Feather name="lock" size={20} color={colors.text.tertiary} />}
+                            leftIcon={<Feather name="lock" size={20} color={colors.neutral[400]} />}
                             rightIcon={
                                 <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
                                     <Feather
-                                        name={showConfirmPassword ? 'eye-off' : 'eye'}
+                                        name={showConfirmPassword ? 'eye' : 'eye-off'}
                                         size={20}
-                                        color={colors.text.tertiary}
+                                        color={colors.neutral[400]}
                                     />
                                 </TouchableOpacity>
                             }
+                            containerStyle={styles.inputContainer}
                         />
 
-                        {/* Terms Checkbox */}
+                        {/* Custom Checkbox Row */}
                         <TouchableOpacity
-                            style={styles.termsContainer}
+                            style={styles.termsRow}
                             onPress={() => setAcceptedTerms(!acceptedTerms)}
-                            activeOpacity={0.7}
+                            activeOpacity={0.8}
                         >
-                            <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
-                                {acceptedTerms && <Feather name="check" size={14} color={colors.text.inverse} />}
+                            <View style={[styles.checkbox, acceptedTerms && styles.checkboxActive]}>
+                                {acceptedTerms && <Feather name="check" size={12} color="#FFFFFF" />}
                             </View>
                             <Text style={styles.termsText}>
-                                I agree to the{' '}
-                                <Text style={styles.termsLink}>Terms of Service</Text>
-                                {' '}and{' '}
-                                <Text style={styles.termsLink}>Privacy Policy</Text>
+                                I agree to the <Text style={styles.linkText}>Terms</Text> and <Text style={styles.linkText}>Privacy Policy</Text>
                             </Text>
                         </TouchableOpacity>
-                        {errors.terms && <Text style={styles.errorText}>{errors.terms}</Text>}
 
                         <Button
-                            title="Create Account"
+                            title={loading ? "Creating Account..." : "Sign Up"}
                             onPress={handleSignUp}
                             loading={loading}
                             fullWidth
                             size="lg"
                             style={styles.signUpButton}
+                            disabled={!acceptedTerms || loading}
                         />
                     </View>
 
-                    {/* Footer */}
+                    {/* Footer - Login Link */}
                     <View style={styles.footer}>
                         <Text style={styles.footerText}>Already have an account?</Text>
-                        <TouchableOpacity onPress={() => {
-                            Keyboard.dismiss();
-                            navigation.navigate('Login');
-                        }}>
-                            <Text style={styles.footerLink}>Sign In</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+                            <Text style={styles.loginLink}>Log In</Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
@@ -228,7 +232,7 @@ export const SignUpScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background.primary,
+        backgroundColor: '#FFFFFF',
     },
     keyboardView: {
         flex: 1,
@@ -236,92 +240,101 @@ const styles = StyleSheet.create({
     scrollContent: {
         flexGrow: 1,
         paddingHorizontal: spacing.xl,
+        paddingTop: spacing['4xl'],
+        paddingBottom: spacing['2xl'],
+    },
+    graphicContainer: {
+        alignItems: 'center',
+        marginBottom: spacing.xl,
+    },
+    logoContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: 24,
+        backgroundColor: colors.blue[500],
+        alignItems: 'center',
         justifyContent: 'center',
+        shadowColor: colors.blue[500],
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
     },
     header: {
         alignItems: 'center',
-        marginBottom: spacing['2xl'],
-    },
-    logo: {
-        fontSize: typography.fontSize['4xl'],
-        fontWeight: typography.fontWeight.bold,
-        color: colors.primary[600],
-        marginBottom: spacing.xs,
-    },
-    tagline: {
-        fontSize: typography.fontSize.base,
-        color: colors.text.secondary,
-    },
-    form: {
         marginBottom: spacing.xl,
     },
     title: {
-        fontSize: 32, // Larger title
+        fontSize: 28,
         fontWeight: typography.fontWeight.bold,
-        color: colors.text.primary,
+        color: colors.neutral[900],
         marginBottom: spacing.xs,
     },
     subtitle: {
         fontSize: typography.fontSize.base,
-        color: colors.text.secondary,
-        marginBottom: spacing['2xl'], // More space
+        color: colors.neutral[500],
+        textAlign: 'center',
     },
-    termsContainer: {
+    form: {
+        width: '100%',
+    },
+    inputContainer: {
+        marginBottom: spacing.md,
+    },
+    termsRow: {
         flexDirection: 'row',
-        alignItems: 'flex-start',
-        marginBottom: spacing.sm,
+        alignItems: 'center',
+        marginBottom: spacing.xl,
         marginTop: spacing.sm,
     },
     checkbox: {
         width: 20,
         height: 20,
-        borderRadius: 4,
-        borderWidth: 1.5,
-        borderColor: colors.primary[600], // Use primary color for border
+        borderRadius: 6,
+        borderWidth: 2,
+        borderColor: colors.neutral[300],
+        marginRight: spacing.sm,
         alignItems: 'center',
         justifyContent: 'center',
-        marginRight: spacing.sm,
-        marginTop: 2,
     },
-    checkboxChecked: {
-        backgroundColor: colors.primary[600],
-        borderColor: colors.primary[600],
+    checkboxActive: {
+        backgroundColor: colors.blue[500],
+        borderColor: colors.blue[500],
     },
     termsText: {
-        flex: 1,
         fontSize: typography.fontSize.sm,
-        color: colors.text.secondary,
-        lineHeight: 20,
+        color: colors.neutral[600],
     },
-    termsLink: {
-        color: colors.accent[500],
-        fontWeight: typography.fontWeight.medium,
-    },
-    errorText: {
-        fontSize: typography.fontSize.xs,
-        color: colors.error,
-        marginBottom: spacing.sm,
+    linkText: {
+        color: colors.blue[600],
+        fontWeight: typography.fontWeight.bold,
     },
     signUpButton: {
-        marginTop: spacing.lg,
-        backgroundColor: colors.primary[600],
+        backgroundColor: colors.blue[600],
         height: 56,
         borderRadius: borderRadius.xl,
+        shadowColor: colors.blue[500],
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
     },
     footer: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        gap: spacing.xs,
+        marginTop: 'auto',
+        paddingTop: spacing.xl,
     },
     footerText: {
         fontSize: typography.fontSize.base,
-        color: colors.text.tertiary,
+        color: colors.neutral[500],
+        marginRight: spacing.xs,
     },
-    footerLink: {
+    loginLink: {
         fontSize: typography.fontSize.base,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.accent[500], // Salmon color
+        fontWeight: typography.fontWeight.bold,
+        color: colors.blue[600],
     },
 });
 

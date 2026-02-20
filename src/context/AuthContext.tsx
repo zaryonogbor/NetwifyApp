@@ -14,6 +14,7 @@ interface AuthContextType {
     user: User | null;
     userProfile: UserProfile | null;
     loading: boolean;
+    profileLoading: boolean;
     signIn: (email: string, password: string) => Promise<void>;
     signUp: (email: string, password: string) => Promise<User>;
     signOut: () => Promise<void>;
@@ -38,6 +39,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [loading, setLoading] = useState(true);
+    const [profileLoading, setProfileLoading] = useState(false);
 
     const fetchUserProfile = async (uid: string) => {
         try {
@@ -64,7 +66,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             console.log('Auth state changed:', currentUser?.uid);
             setUser(currentUser);
             if (currentUser) {
+                setProfileLoading(true);
                 await fetchUserProfile(currentUser.uid);
+                setProfileLoading(false);
             } else {
                 setUserProfile(null);
             }
@@ -94,6 +98,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         user,
         userProfile,
         loading,
+        profileLoading,
         signIn,
         signUp,
         signOut,

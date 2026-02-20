@@ -36,6 +36,20 @@ export const colors = {
         600: '#D9998B',
     },
 
+    // Blue - New brand color
+    blue: {
+        50: '#EBF2FF',
+        100: '#D6E4FF',
+        200: '#ADC8FF',
+        300: '#84ADFF',
+        400: '#5B91FF',
+        500: '#3B82F6', // Main Blue
+        600: '#2563EB', // Darker Blue (gradients)
+        700: '#1D4ED8',
+        800: '#1E40AF',
+        900: '#1E3A8A',
+    },
+
     // Neutral Colors (Lavender/Grey tones)
     neutral: {
         50: '#FAFAFA', // Background

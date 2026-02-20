@@ -66,12 +66,12 @@ const styles = StyleSheet.create({
         backgroundColor: colors.neutral[200],
     },
     placeholder: {
-        backgroundColor: colors.primary[100],
+        backgroundColor: colors.blue[100],
         alignItems: 'center',
         justifyContent: 'center',
     },
     initials: {
-        color: colors.primary[600],
+        color: colors.blue[600],
         fontWeight: typography.fontWeight.semibold,
     },
 });

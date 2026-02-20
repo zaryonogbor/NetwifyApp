@@ -83,12 +83,23 @@ export type RootStackParamList = {
     Main: undefined;
     Login: undefined;
     SignUp: undefined;
+    Splash: undefined;
+    Onboarding: undefined;
     CreateProfile: undefined;
     ContactDetail: { contactId: string };
     AIFollowUp: { contactId: string };
     EditProfile: undefined;
     QRScanner: undefined;
     Notifications: undefined;
+    Settings: undefined;
+    PrivacySecurity: undefined;
+    ChangePassword: undefined;
+    Language: undefined;
+    Appearance: undefined;
+    HelpSupport: undefined;
+    TermsOfService: undefined;
+    PrivacyPolicy: undefined;
+    About: undefined;
 };
 
 export type MainTabParamList = {

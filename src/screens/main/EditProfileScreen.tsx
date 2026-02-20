@@ -9,17 +9,19 @@ import {
     TouchableOpacity,
     Image,
     Alert,
+    StatusBar,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { Button, Input, SearchableDropdown, CountryCodePicker } from '../../components/ui';
+import { Button, Input, SearchableDropdown } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { db, storage } from '../../config/firebase';
-import { colors, typography, spacing, borderRadius } from '../../theme';
+import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
 import { RootStackParamList } from '../../types';
 
 const JOB_TITLES = [
@@ -62,8 +64,7 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
     const [customJobTitle, setCustomJobTitle] = useState('');
     const [isOtherSelected, setIsOtherSelected] = useState(false);
     const [company, setCompany] = useState(userProfile?.company || '');
-    const [countryCode, setCountryCode] = useState('+234');
-    const [phoneNumber, setPhoneNumber] = useState('');
+    const [phoneNumber, setPhoneNumber] = useState(userProfile?.phone || '');
     const [gender, setGender] = useState(userProfile?.gender || '');
     const [linkedIn, setLinkedIn] = useState(userProfile?.linkedIn || '');
     const [website, setWebsite] = useState(userProfile?.website || '');
@@ -83,54 +84,25 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
 
     useEffect(() => {
         if (userProfile) {
-            // Derivation logic for first/last name if missing (for legacy or broken profiles)
             const splitDisplayName = (userProfile.displayName || '').split(' ');
             const derivedFirstName = splitDisplayName[0] || '';
             const derivedLastName = splitDisplayName.slice(1).join(' ') || '';
 
             setFirstName(userProfile.firstName || derivedFirstName);
             setLastName(userProfile.lastName || derivedLastName);
-
-            // Priority: userProfile.email > user.email
             setEmail(userProfile.email || user?.email || '');
-
             setCompany(userProfile.company || '');
             setLinkedIn(userProfile.linkedIn || '');
             setWebsite(userProfile.website || '');
             setAddress(userProfile.address || '');
             setBio(userProfile.bio || '');
             setGender(userProfile.gender || '');
+            setPhoneNumber(userProfile.phone || '');
             setPhotoUri(userProfile.photoURL || null);
 
-            // Handle phone number and country code parsing
-            const fullPhone = userProfile.phone || '';
-            if (fullPhone && fullPhone.startsWith('+')) {
-                // List of supported country codes from CountryCodePicker
-                const codes = ['+234', '+233', '+254', '+27', '+971', '+966', '+91', '+86', '+81', '+33', '+49', '+61', '+44', '+1', '+55', '+52', '+82'];
-                // Sort by length descending to match longest possible code (e.g., +971 before +9)
-                const sortedCodes = [...codes].sort((a, b) => b.length - a.length);
-
-                let foundCode = '+234'; // Default
-                let phonePart = fullPhone;
-
-                for (const c of sortedCodes) {
-                    if (fullPhone.startsWith(c)) {
-                        foundCode = c;
-                        phonePart = fullPhone.slice(c.length);
-                        break;
-                    }
-                }
-                setCountryCode(foundCode);
-                setPhoneNumber(phonePart);
-            } else {
-                setPhoneNumber(fullPhone);
-            }
-
-            // Handle job title initialization
             const profileJobTitle = userProfile.jobTitle || '';
             if (profileJobTitle) {
                 const matchingOption = JOB_TITLES.find(opt => opt.value === profileJobTitle);
-
                 if (matchingOption && profileJobTitle !== 'Other') {
                     setSelectedJobTitle(profileJobTitle);
                     setIsOtherSelected(false);
@@ -216,7 +188,7 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
                 photoURL: photoURL || null,
                 jobTitle: finalJobTitle || null,
                 company: company.trim() || null,
-                phone: phoneNumber.trim() ? `${countryCode}${phoneNumber.trim()}` : null,
+                phone: phoneNumber.trim() || null,
                 linkedIn: linkedIn.trim() || null,
                 website: website.trim() || null,
                 address: address.trim() || null,
@@ -227,14 +199,15 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
 
             await refreshUserProfile();
 
-            if (Platform.OS === 'web') {
-                alert('Profile updated successfully');
-                navigation.goBack();
-            } else {
+            // Just go back, maybe show a toast if we had one, but Alert is fine for now on native
+            if (Platform.OS !== 'web') {
                 Alert.alert('Success', 'Profile updated successfully', [
                     { text: 'OK', onPress: () => navigation.goBack() }
                 ]);
+            } else {
+                navigation.goBack();
             }
+
         } catch (error) {
             console.error('Error updating profile:', error);
             Alert.alert('Error', 'Failed to update profile. Please try again.');
@@ -243,8 +216,34 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
         }
     };
 
+    const FormSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
+        <View style={styles.section}>
+            <Text style={styles.sectionTitle}>{title}</Text>
+            <View style={styles.sectionCard}>
+                {children}
+            </View>
+        </View>
+    );
+
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <StatusBar barStyle="dark-content" backgroundColor={colors.background.primary} />
+
+            {/* Header */}
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                    <Feather name="arrow-left" size={22} color={colors.neutral[900]} />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Edit Profile</Text>
+                <TouchableOpacity onPress={handleUpdateProfile} disabled={loading}>
+                    {loading ? (
+                        <ActivityIndicator size="small" color={colors.blue[500]} />
+                    ) : (
+                        <Text style={styles.saveLink}>Save</Text>
+                    )}
+                </TouchableOpacity>
+            </View>
+
             <KeyboardAvoidingView
                 behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
                 style={styles.keyboardView}
@@ -254,70 +253,52 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-                            <Feather name="arrow-left" size={24} color={colors.primary[600]} />
+                    {/* Photo Picker */}
+                    <View style={styles.photoSection}>
+                        <TouchableOpacity style={styles.photoContainer} onPress={pickImage} activeOpacity={0.8}>
+                            {photoUri ? (
+                                <Image source={{ uri: photoUri }} style={styles.photo} />
+                            ) : (
+                                <View style={styles.photoPlaceholder}>
+                                    <Feather name="user" size={40} color={colors.blue[200]} />
+                                </View>
+                            )}
+                            <View style={styles.editBadge}>
+                                <Feather name="camera" size={14} color="#FFFFFF" />
+                            </View>
                         </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Edit Profile</Text>
-                        <View style={{ width: 44 }} />
+                        <Text style={styles.photoHint}>Tap to change profile photo</Text>
                     </View>
 
-                    {/* Photo Picker */}
-                    <TouchableOpacity style={styles.photoContainer} onPress={pickImage}>
-                        {photoUri ? (
-                            <Image source={{ uri: photoUri }} style={styles.photo} />
-                        ) : (
-                            <View style={styles.photoPlaceholder}>
-                                <Feather name="camera" size={32} color={colors.primary[400]} />
-                                <Text style={styles.photoPlaceholderText}>Update Photo</Text>
+                    {/* Basic Info */}
+                    <FormSection title="BASIC INFO">
+                        <View style={styles.row}>
+                            <View style={{ flex: 1 }}>
+                                <Input
+                                    label="First Name"
+                                    placeholder="Jane"
+                                    value={firstName}
+                                    onChangeText={setFirstName}
+                                    error={errors.firstName}
+                                    containerStyle={styles.inputSpacing}
+                                />
                             </View>
-                        )}
-                        <View style={styles.editBadge}>
-                            <Feather name="edit-2" size={14} color={colors.text.inverse} />
+                            <View style={{ width: spacing.md }} />
+                            <View style={{ flex: 1 }}>
+                                <Input
+                                    label="Last Name"
+                                    placeholder="Doe"
+                                    value={lastName}
+                                    onChangeText={setLastName}
+                                    error={errors.lastName}
+                                    containerStyle={styles.inputSpacing}
+                                />
+                            </View>
                         </View>
-                    </TouchableOpacity>
-
-                    {/* Form */}
-                    <View style={styles.form}>
-                        <Input
-                            label="First Name"
-                            required
-                            placeholder="Eg. John"
-                            value={firstName}
-                            onChangeText={setFirstName}
-                            autoCapitalize="words"
-                            error={errors.firstName}
-                            leftIcon={<Feather name="user" size={20} color={colors.text.tertiary} />}
-                        />
-
-                        <Input
-                            label="Last Name"
-                            required
-                            placeholder="Eg. Doe"
-                            value={lastName}
-                            onChangeText={setLastName}
-                            autoCapitalize="words"
-                            error={errors.lastName}
-                            leftIcon={<Feather name="user" size={20} color={colors.text.tertiary} />}
-                        />
-
-                        <Input
-                            label="Email"
-                            required
-                            placeholder="Eg. john@example.com"
-                            value={email}
-                            onChangeText={setEmail}
-                            keyboardType="email-address"
-                            autoCapitalize="none"
-                            error={errors.email}
-                            leftIcon={<Feather name="mail" size={20} color={colors.text.tertiary} />}
-                        />
 
                         <SearchableDropdown
                             label="Job Title"
-                            required
-                            placeholder="Select your job title"
+                            placeholder="Select role"
                             options={JOB_TITLES}
                             value={selectedJobTitle}
                             onSelect={(val: string) => {
@@ -325,112 +306,114 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
                                 setIsOtherSelected(val === 'Other');
                             }}
                             error={errors.jobTitle}
-                            leftIcon={<Feather name="briefcase" size={20} color={colors.text.tertiary} />}
+                            containerStyle={styles.inputSpacing}
                         />
 
                         {isOtherSelected && (
                             <Input
                                 label="Custom Job Title"
-                                required
-                                placeholder="Enter your job title"
+                                placeholder="Enter role"
                                 value={customJobTitle}
                                 onChangeText={setCustomJobTitle}
-                                autoCapitalize="words"
                                 error={errors.jobTitle}
-                                leftIcon={<Feather name="edit-3" size={20} color={colors.text.tertiary} />}
+                                containerStyle={styles.inputSpacing}
                             />
                         )}
 
                         <Input
                             label="Company"
-                            required
-                            placeholder="e.g., Acme Inc."
+                            placeholder="Acme Inc."
                             value={company}
                             onChangeText={setCompany}
-                            autoCapitalize="words"
                             error={errors.company}
-                            leftIcon={<Feather name="home" size={20} color={colors.text.tertiary} />}
+                            containerStyle={styles.inputSpacing}
+                            leftIcon={<Feather name="briefcase" size={18} color={colors.neutral[500]} />}
                         />
 
                         <SearchableDropdown
                             label="Gender"
-                            required
                             placeholder="Select Gender"
                             options={GENDER_OPTIONS}
                             value={gender}
                             onSelect={setGender}
                             error={errors.gender}
-                            leftIcon={<Feather name="users" size={20} color={colors.text.tertiary} />}
                         />
+                    </FormSection>
 
-                        <View style={styles.phoneFieldContainer}>
-                            <CountryCodePicker
-                                label="Phone"
-                                required
-                                value={countryCode}
-                                onSelect={setCountryCode}
-                            />
-                            <View style={{ flex: 1 }}>
-                                <Input
-                                    label=" "
-                                    placeholder="801 234 5678"
-                                    value={phoneNumber}
-                                    onChangeText={setPhoneNumber}
-                                    keyboardType="phone-pad"
-                                    leftIcon={<Feather name="phone" size={20} color={colors.text.tertiary} />}
-                                />
-                            </View>
-                        </View>
-
+                    {/* Contact Info */}
+                    <FormSection title="CONTACT">
                         <Input
-                            label="LinkedIn URL"
-                            placeholder="linkedin.com/in/yourprofile"
-                            value={linkedIn}
-                            onChangeText={setLinkedIn}
-                            autoCapitalize="none"
-                            keyboardType="url"
-                            leftIcon={<Feather name="linkedin" size={20} color={colors.text.tertiary} />}
+                            label="Email"
+                            placeholder="jane@example.com"
+                            value={email}
+                            onChangeText={setEmail}
+                            error={errors.email}
+                            keyboardType="email-address"
+                            containerStyle={styles.inputSpacing}
+                            leftIcon={<Feather name="mail" size={18} color={colors.neutral[500]} />}
                         />
-
                         <Input
-                            label="Website"
-                            placeholder="www.yourwebsite.com"
-                            value={website}
-                            onChangeText={setWebsite}
-                            autoCapitalize="none"
-                            keyboardType="url"
-                            leftIcon={<Feather name="globe" size={20} color={colors.text.tertiary} />}
+                            label="Phone"
+                            placeholder="+1 234 567 890"
+                            value={phoneNumber}
+                            onChangeText={setPhoneNumber}
+                            keyboardType="phone-pad"
+                            containerStyle={styles.inputSpacing}
+                            leftIcon={<Feather name="phone" size={18} color={colors.neutral[500]} />}
                         />
-
                         <Input
                             label="Office Address"
-                            placeholder="e.g. 123 Business St, Suite 100"
+                            placeholder="123 Main St..."
                             value={address}
                             onChangeText={setAddress}
-                            leftIcon={<Feather name="map-pin" size={20} color={colors.text.tertiary} />}
+                            containerStyle={styles.inputSpacing}
+                            leftIcon={<Feather name="map-pin" size={18} color={colors.neutral[500]} />}
                         />
+                    </FormSection>
 
+                    {/* Socials */}
+                    <FormSection title="SOCIALS">
                         <Input
-                            label="Short Bio"
-                            required
-                            placeholder="Tell people a bit about yourself..."
+                            label="LinkedIn"
+                            placeholder="linkedin.com/in/..."
+                            value={linkedIn}
+                            onChangeText={setLinkedIn}
+                            containerStyle={styles.inputSpacing}
+                            leftIcon={<Feather name="linkedin" size={18} color={colors.neutral[500]} />}
+                        />
+                        <Input
+                            label="Website"
+                            placeholder="https://..."
+                            value={website}
+                            onChangeText={setWebsite}
+                            containerStyle={{ marginBottom: 0 }}
+                            leftIcon={<Feather name="globe" size={18} color={colors.neutral[500]} />}
+                        />
+                    </FormSection>
+
+                    {/* Bio */}
+                    <FormSection title="ABOUT">
+                        <Input
+                            label="Bio"
+                            placeholder="Share a brief intro..."
                             value={bio}
                             onChangeText={setBio}
                             error={errors.bio}
                             multiline
-                            numberOfLines={3}
-                            style={{ height: 80, textAlignVertical: 'top' }}
+                            numberOfLines={4}
+                            style={{ height: 100, textAlignVertical: 'top' }}
+                            containerStyle={{ marginBottom: 0 }}
                         />
+                    </FormSection>
 
-                        <Button
-                            title="Save Changes"
-                            onPress={handleUpdateProfile}
-                            loading={loading}
-                            fullWidth
-                            size="lg"
-                            style={styles.saveButton}
-                        />
-                    </View>
+                    {/* Save Button (Bottom) */}
+                    <Button
+                        title="Save Profile"
+                        onPress={handleUpdateProfile}
+                        loading={loading}
+                        style={styles.bottomSaveButton}
+                    />
+
                 </ScrollView>
             </KeyboardAvoidingView>
         </SafeAreaView>
@@ -446,54 +429,63 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     scrollContent: {
-        flexGrow: 1,
-        paddingHorizontal: spacing.xl,
-        paddingTop: spacing.md,
         paddingBottom: spacing['4xl'],
     },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        marginBottom: spacing.xl,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.md,
+        backgroundColor: colors.background.primary,
     },
     backButton: {
-        width: 44,
-        height: 44,
+        width: 40,
+        height: 40,
         alignItems: 'center',
         justifyContent: 'center',
+        borderRadius: 20,
+        backgroundColor: colors.background.secondary,
+        borderWidth: 1,
+        borderColor: colors.border.light,
     },
     headerTitle: {
-        fontSize: typography.fontSize.lg,
+        fontSize: typography.fontSize.xl,
         fontWeight: typography.fontWeight.bold,
-        color: colors.primary[600],
+        color: colors.neutral[900],
+    },
+    saveLink: {
+        fontSize: typography.fontSize.base,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.blue[600],
+    },
+
+    // Photo
+    photoSection: {
+        alignItems: 'center',
+        marginVertical: spacing.lg,
     },
     photoContainer: {
-        alignSelf: 'center',
-        marginBottom: spacing['2xl'],
         position: 'relative',
+        marginBottom: spacing.xs,
+        ...shadows.sm,
     },
     photo: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        borderWidth: 3,
+        borderColor: colors.background.secondary,
     },
     photoPlaceholder: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
-        backgroundColor: colors.primary[50],
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: colors.blue[50],
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: colors.primary[200],
-        borderStyle: 'dashed',
-    },
-    photoPlaceholderText: {
-        marginTop: spacing.xs,
-        fontSize: typography.fontSize.sm,
-        color: colors.primary[600],
-        fontWeight: typography.fontWeight.medium,
+        borderWidth: 3,
+        borderColor: colors.background.secondary,
     },
     editBadge: {
         position: 'absolute',
@@ -502,22 +494,49 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: colors.primary[600],
+        backgroundColor: colors.blue[500],
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 3,
-        borderColor: colors.background.primary,
+        borderWidth: 2,
+        borderColor: colors.background.secondary,
     },
-    form: {},
-    phoneFieldContainer: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
+    photoHint: {
+        fontSize: typography.fontSize.xs,
+        color: colors.neutral[500],
+        marginTop: spacing.xs,
     },
-    saveButton: {
-        marginTop: spacing.lg,
-        backgroundColor: colors.primary[600],
-        height: 56,
+
+    // Form Sections
+    section: {
+        marginBottom: spacing.lg,
+        paddingHorizontal: spacing.lg,
+    },
+    sectionTitle: {
+        fontSize: typography.fontSize.xs,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.neutral[500],
+        letterSpacing: 1,
+        marginBottom: spacing.sm,
+        marginLeft: spacing.xs,
+    },
+    sectionCard: {
+        backgroundColor: colors.background.secondary,
         borderRadius: borderRadius.xl,
+        padding: spacing.lg,
+        borderWidth: 1,
+        borderColor: colors.border.light,
+    },
+    row: {
+        flexDirection: 'row',
+    },
+    inputSpacing: {
+        marginBottom: spacing.md,
+    },
+    bottomSaveButton: {
+        marginHorizontal: spacing.lg,
+        marginTop: spacing.sm,
+        backgroundColor: colors.blue[500],
+        marginBottom: spacing.lg,
     },
 });
 

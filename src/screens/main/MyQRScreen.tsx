@@ -9,11 +9,11 @@ import {
     ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import QRCode from 'react-native-qrcode-svg';
 import { useAuth } from '../../context/AuthContext';
 import { Avatar } from '../../components/ui';
-import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
+import { colors, typography, spacing, borderRadius } from '../../theme';
 import { QRCodeData } from '../../types';
 
 export const MyQRScreen: React.FC = () => {
@@ -37,10 +37,9 @@ export const MyQRScreen: React.FC = () => {
         }
     };
 
-    // Calculate responsive sizes with constraints
-    const maxCardWidth = 450;
-    const effectiveWidth = Math.min(width - spacing.xl * 2, maxCardWidth);
-    const qrSize = effectiveWidth * 0.6;
+    const maxCardWidth = 420;
+    const effectiveWidth = Math.min(width - spacing.lg * 2, maxCardWidth);
+    const qrSize = effectiveWidth * 0.5;
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
@@ -56,55 +55,76 @@ export const MyQRScreen: React.FC = () => {
                     </Text>
                 </View>
 
-                {/* QR Card Container */}
-                <View style={[styles.cardWrapper, { maxWidth: maxCardWidth }]}>
-                    {/* The Dark Purple Card */}
+                {/* Main QR Card */}
+                <View style={[styles.cardOuter, { maxWidth: maxCardWidth }]}>
                     <View style={styles.qrCard}>
-                        {/* Profile Info */}
-                        <View style={styles.profileSection}>
-                            <Text style={styles.profileName}>{userProfile?.displayName}</Text>
-                            <Text style={styles.profileRole}>
-                                {userProfile?.jobTitle}
-                                {userProfile?.company && ` At ${userProfile?.company}`}
-                            </Text>
+                        {/* Decorative background circles */}
+                        <View style={styles.decorCircle1} />
+                        <View style={styles.decorCircle2} />
+
+                        {/* Avatar */}
+                        <View style={styles.avatarWrapper}>
+                            <Avatar
+                                source={userProfile?.photoURL}
+                                name={userProfile?.displayName}
+                                size="xl"
+                            />
                         </View>
 
-                        {/* QR Code Container (White Box) */}
-                        <View style={[styles.qrContainer, { width: effectiveWidth * 0.75, height: effectiveWidth * 0.75 }]}>
+                        {/* Profile Info */}
+                        <Text style={styles.profileName}>{userProfile?.displayName}</Text>
+                        <Text style={styles.profileRole}>
+                            {userProfile?.jobTitle}
+                            {userProfile?.company && ` • ${userProfile.company}`}
+                        </Text>
+
+                        {/* QR Code */}
+                        <View style={[styles.qrContainer, { width: effectiveWidth * 0.65, height: effectiveWidth * 0.65 }]}>
                             <QRCode
                                 value={JSON.stringify(qrData)}
                                 size={qrSize}
-                                color="#000000"
+                                color={colors.blue[700]}
                                 backgroundColor="#FFFFFF"
                             />
                         </View>
 
-                        {/* Scan Instructions */}
-                        <Text style={styles.instructionsText}>
-                            Scan this code to send connection request
-                        </Text>
-                    </View>
-
-                    {/* Overlapping Avatar */}
-                    <View style={styles.avatarContainer}>
-                        <Avatar
-                            source={userProfile?.photoURL}
-                            name={userProfile?.displayName}
-                            size="xl"
-                        />
+                        {/* Scan Instruction */}
+                        <View style={styles.instructionRow}>
+                            <MaterialCommunityIcons name="cellphone-nfc" size={16} color="rgba(255,255,255,0.7)" />
+                            <Text style={styles.instructionText}>
+                                Scan this code to connect
+                            </Text>
+                        </View>
                     </View>
                 </View>
 
-                {/* Actions */}
+                {/* Action Buttons */}
                 <View style={[styles.actions, { maxWidth: maxCardWidth }]}>
                     <TouchableOpacity
                         style={styles.shareButton}
                         onPress={handleShare}
-                        activeOpacity={0.8}
+                        activeOpacity={0.85}
                     >
-                        <Feather name="share-2" size={20} color="#FFFFFF" style={styles.shareIcon} />
+                        <Feather name="share-2" size={18} color="#FFFFFF" />
                         <Text style={styles.shareButtonText}>Share Profile</Text>
                     </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.copyButton}
+                        onPress={handleShare}
+                        activeOpacity={0.85}
+                    >
+                        <Feather name="copy" size={18} color={colors.blue[500]} />
+                        <Text style={styles.copyButtonText}>Copy Link</Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Tip */}
+                <View style={styles.tipContainer}>
+                    <MaterialCommunityIcons name="lightbulb-outline" size={16} color={colors.blue[500]} />
+                    <Text style={styles.tipText}>
+                        Tip: Your QR code works even without internet
+                    </Text>
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -114,61 +134,79 @@ export const MyQRScreen: React.FC = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFAFA',
+        backgroundColor: '#F9FAFB',
     },
     scrollContent: {
         flexGrow: 1,
-        paddingHorizontal: spacing.xl,
+        paddingHorizontal: spacing.lg,
         paddingTop: spacing.lg,
         paddingBottom: spacing['3xl'],
         alignItems: 'center',
     },
+
+    // Header
     header: {
         alignItems: 'center',
-        marginBottom: spacing['4xl'],
+        marginBottom: spacing['2xl'],
     },
     title: {
-        fontSize: typography.fontSize['3xl'],
+        fontSize: typography.fontSize['2xl'],
         fontWeight: typography.fontWeight.bold,
-        color: colors.primary[600],
+        color: colors.neutral[900],
         marginBottom: spacing.xs,
     },
     subtitle: {
         fontSize: typography.fontSize.sm,
-        color: '#9E97CA',
+        color: colors.neutral[500],
         textAlign: 'center',
     },
-    cardWrapper: {
+
+    // Card
+    cardOuter: {
         width: '100%',
         alignItems: 'center',
-        position: 'relative',
         marginBottom: spacing.xl,
     },
     qrCard: {
-        backgroundColor: '#433D62',
         width: '100%',
-        borderRadius: 30,
-        paddingTop: 80,
+        borderRadius: 24,
+        paddingTop: spacing['2xl'],
         paddingBottom: spacing.xl,
         paddingHorizontal: spacing.xl,
         alignItems: 'center',
-        ...shadows.lg,
+        backgroundColor: colors.blue[500],
+        overflow: 'hidden',
+        position: 'relative',
     },
-    avatarContainer: {
+    decorCircle1: {
         position: 'absolute',
-        top: -45,
-        zIndex: 10,
+        top: -40,
+        right: -40,
+        width: 140,
+        height: 140,
+        borderRadius: 70,
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    },
+    decorCircle2: {
+        position: 'absolute',
+        bottom: -30,
+        left: -30,
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    },
+
+    // Avatar
+    avatarWrapper: {
         borderRadius: 999,
-        borderWidth: 4,
-        borderColor: '#FAFAFA',
-        padding: 4,
-        backgroundColor: '#FAFAFA',
-        ...shadows.md,
+        borderWidth: 3,
+        borderColor: 'rgba(255, 255, 255, 0.3)',
+        padding: 3,
+        marginBottom: spacing.md,
     },
-    profileSection: {
-        alignItems: 'center',
-        marginBottom: spacing.xl,
-    },
+
+    // Profile
     profileName: {
         fontSize: typography.fontSize.xl,
         fontWeight: typography.fontWeight.bold,
@@ -178,44 +216,86 @@ const styles = StyleSheet.create({
     },
     profileRole: {
         fontSize: typography.fontSize.sm,
-        color: '#F2A090',
-        fontWeight: '500',
+        color: 'rgba(255, 255, 255, 0.8)',
+        fontWeight: typography.fontWeight.medium,
         textAlign: 'center',
+        marginBottom: spacing.xl,
     },
+
+    // QR
     qrContainer: {
         backgroundColor: '#FFFFFF',
-        borderRadius: 20,
+        borderRadius: 18,
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: spacing.lg,
-        ...shadows.sm,
+        marginBottom: spacing.base,
     },
-    instructionsText: {
+
+    // Instruction
+    instructionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.xs,
+    },
+    instructionText: {
         fontSize: typography.fontSize.sm,
-        color: '#FFFFFF',
-        opacity: 0.8,
-        textAlign: 'center',
+        color: 'rgba(255, 255, 255, 0.7)',
     },
+
+    // Actions
     actions: {
         width: '100%',
-        marginTop: spacing.xl,
+        flexDirection: 'row',
+        gap: spacing.md,
     },
     shareButton: {
-        backgroundColor: '#F2A090',
+        flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 18,
-        borderRadius: borderRadius.full,
-        ...shadows.md,
-    },
-    shareIcon: {
-        marginRight: spacing.sm,
+        gap: spacing.sm,
+        backgroundColor: colors.blue[500],
+        paddingVertical: spacing.base,
+        borderRadius: borderRadius.xl,
     },
     shareButtonText: {
         color: '#FFFFFF',
-        fontSize: typography.fontSize.lg,
+        fontSize: typography.fontSize.base,
         fontWeight: typography.fontWeight.bold,
+    },
+    copyButton: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: spacing.sm,
+        backgroundColor: '#FFFFFF',
+        paddingVertical: spacing.base,
+        borderRadius: borderRadius.xl,
+        borderWidth: 1.5,
+        borderColor: colors.blue[500],
+    },
+    copyButtonText: {
+        color: colors.blue[500],
+        fontSize: typography.fontSize.base,
+        fontWeight: typography.fontWeight.bold,
+    },
+
+    // Tip
+    tipContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.sm,
+        marginTop: spacing.xl,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.lg,
+        backgroundColor: colors.blue[50],
+        borderRadius: borderRadius.lg,
+    },
+    tipText: {
+        fontSize: typography.fontSize.sm,
+        color: colors.blue[700],
+        fontWeight: typography.fontWeight.medium,
     },
 });
 

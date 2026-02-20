@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -7,49 +7,36 @@ import {
     TouchableOpacity,
     Alert,
     Linking,
-    Platform,
     StatusBar,
+    Image,
+    Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
+import { collection, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
-import { Card, Avatar, Button } from '../../components/ui';
+import { db } from '../../config/firebase';
 import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
 
+const { width } = Dimensions.get('window');
+const HERO_HEIGHT = 260;
+
 export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-    const { userProfile, signOut } = useAuth();
+    const { userProfile, user } = useAuth();
+    const [connectionCount, setConnectionCount] = useState(0);
 
-    const handleSignOut = () => {
-        const performSignOut = async () => {
-            console.log('User confirmed sign out, calling signOut...');
-            try {
-                await signOut();
-                console.log('Sign out successful');
-            } catch (error) {
-                console.error('Error during sign out:', error);
-                Alert.alert('Error', 'An error occurred during sign out. Please try again.');
-            }
-        };
-
-        if (Platform.OS === 'web') {
-            if (window.confirm('Are you sure you want to sign out?')) {
-                performSignOut();
-            }
-        } else {
-            Alert.alert(
-                'Sign Out',
-                'Are you sure you want to sign out?',
-                [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Sign Out', style: 'destructive', onPress: performSignOut },
-                ]
+    useEffect(() => {
+        if (!user) return;
+        const fetchCount = async () => {
+            const q = query(
+                collection(db, 'contacts'),
+                where('userId', '==', user.uid)
             );
-        }
-    };
-
-    const handleEditProfile = () => {
-        navigation.navigate('EditProfile');
-    };
+            const snapshot = await getDocs(q);
+            setConnectionCount(snapshot.size);
+        };
+        fetchCount();
+    }, [user]);
 
     const openLink = async (url: string) => {
         try {
@@ -59,182 +46,189 @@ export const ProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => 
         }
     };
 
-    const ProfileItem = ({
+    const getInitials = (name?: string): string => {
+        if (!name) return '?';
+        const parts = name.trim().split(' ');
+        if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+        return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+    };
+
+    const ContactRow = ({
         icon,
         label,
         value,
-        onPress
+        onPress,
+        isLast,
     }: {
         icon: string;
         label: string;
         value?: string;
         onPress?: () => void;
+        isLast?: boolean;
     }) => (
         <TouchableOpacity
-            style={styles.profileItem}
+            style={[styles.contactRow, !isLast && styles.contactRowBorder]}
             onPress={onPress}
             disabled={!onPress || !value}
-            activeOpacity={onPress ? 0.7 : 1}
+            activeOpacity={onPress && value ? 0.7 : 1}
         >
-            <View style={styles.profileItemIcon}>
-                <Feather name={icon as any} size={18} color={colors.primary[400]} />
+            <View style={styles.contactIconBox}>
+                <Feather name={icon as any} size={17} color={colors.blue[500]} />
             </View>
-            <View style={styles.profileItemContent}>
-                <Text style={styles.profileItemLabel}>{label}</Text>
-                <Text style={[
-                    styles.profileItemValue,
-                    onPress && value && { color: colors.accent[500] }
-                ]}>
+            <View style={styles.contactContent}>
+                <Text style={styles.contactLabel}>{label}</Text>
+                <Text style={[styles.contactValue, !value && styles.contactValueEmpty]}>
                     {value || 'Not set'}
                 </Text>
             </View>
             {onPress && value && (
-                <Feather name="chevron-right" size={16} color={colors.text.tertiary} />
+                <View style={styles.contactChevron}>
+                    <Feather name="chevron-right" size={16} color={colors.blue[400]} />
+                </View>
             )}
         </TouchableOpacity>
     );
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
-            <StatusBar barStyle="dark-content" />
-
-            {/* Header */}
-            <View style={styles.header}>
-                <Text style={styles.title}>Profile</Text>
-                <TouchableOpacity onPress={handleEditProfile} style={styles.editButton}>
-                    <Feather name="settings" size={24} color={colors.primary[600]} />
-                </TouchableOpacity>
-            </View>
+            <StatusBar barStyle="light-content" backgroundColor={colors.blue[500]} />
 
             <ScrollView
-                style={styles.scrollView}
-                contentContainerStyle={styles.scrollContent}
                 showsVerticalScrollIndicator={false}
+                contentContainerStyle={styles.scrollContent}
             >
-                {/* Profile Section */}
-                <View style={styles.profileWrapper}>
-                    <View style={styles.avatarOverlap}>
-                        <Avatar
-                            source={userProfile?.photoURL}
-                            name={userProfile?.displayName}
-                            size="xl"
-                            style={styles.avatarBorder}
-                        />
-                        <TouchableOpacity
-                            style={styles.editAvatarButton}
-                            onPress={handleEditProfile}
-                        >
-                            <Feather name="camera" size={14} color={colors.text.inverse} />
-                        </TouchableOpacity>
-                    </View>
-                    <Card variant="elevated" style={styles.profileCard}>
-                        <View style={{ height: 40 }} />
-                        <Text style={styles.profileName}>{userProfile?.displayName}</Text>
-                        <Text style={styles.profileRole}>
-                            {userProfile?.jobTitle}
-                        </Text>
-                        {userProfile?.company && (
-                            <Text style={styles.profileCompany}>{userProfile?.company}</Text>
-                        )}
+                {/* ── Blue Hero Header ── */}
+                <View style={styles.hero}>
+                    {/* Decorative background circles */}
+                    <View style={styles.decorCircle1} />
+                    <View style={styles.decorCircle2} />
+                    {/* Settings button */}
+                    <TouchableOpacity
+                        style={styles.settingsBtn}
+                        onPress={() => navigation.navigate('Settings')}
+                        activeOpacity={0.8}
+                    >
+                        <Feather name="settings" size={20} color="rgba(255,255,255,0.9)" />
+                    </TouchableOpacity>
 
-                        {userProfile?.bio && (
-                            <View style={styles.bioContainer}>
-                                <Text style={styles.profileBio}>{userProfile.bio}</Text>
+                    {/* Avatar */}
+                    <View style={styles.avatarRing}>
+                        {userProfile?.photoURL ? (
+                            <Image source={{ uri: userProfile.photoURL }} style={styles.avatarImage} />
+                        ) : (
+                            <View style={styles.avatarPlaceholder}>
+                                <Text style={styles.avatarInitials}>
+                                    {getInitials(userProfile?.displayName)}
+                                </Text>
                             </View>
                         )}
-
+                        {/* Edit badge */}
                         <TouchableOpacity
-                            style={styles.editProfileButton}
-                            onPress={handleEditProfile}
-                            activeOpacity={0.8}
+                            style={styles.editBadge}
+                            onPress={() => navigation.navigate('EditProfile')}
+                            activeOpacity={0.85}
                         >
-                            <Feather name="edit-2" size={18} color="#FFFFFF" style={styles.editIcon} />
-                            <Text style={styles.editProfileButtonText}>Edit Profile</Text>
+                            <Feather name="edit-2" size={11} color="#FFFFFF" />
                         </TouchableOpacity>
-                    </Card>
+                    </View>
+
+                    {/* Name & Role */}
+                    <Text style={styles.heroName}>{userProfile?.displayName || 'Your Name'}</Text>
+                    <Text style={styles.heroRole}>
+                        {userProfile?.jobTitle
+                            ? `${userProfile.jobTitle}${userProfile.company ? ` · ${userProfile.company}` : ''}`
+                            : 'Add your role'}
+                    </Text>
                 </View>
 
-                {/* Contact Info */}
-                <Card style={styles.section}>
-                    <Text style={styles.sectionTitle}>CONTACT INFORMATION</Text>
+                {/* ── Floating Stats Card ── */}
+                <View style={styles.statsCard}>
+                    <View style={styles.statItem}>
+                        <Text style={styles.statNumber}>{connectionCount}</Text>
+                        <Text style={styles.statLabel}>Connections</Text>
+                    </View>
 
-                    <ProfileItem
-                        icon="mail"
-                        label="Email"
-                        value={userProfile?.email}
-                    />
-                    <ProfileItem
-                        icon="phone"
-                        label="Phone"
-                        value={userProfile?.phone}
-                    />
-                    <ProfileItem
-                        icon="linkedin"
-                        label="LinkedIn"
-                        value={userProfile?.linkedIn}
-                        onPress={userProfile?.linkedIn ?
-                            () => openLink(`https://${userProfile.linkedIn}`) : undefined
-                        }
-                    />
-                    <ProfileItem
-                        icon="globe"
-                        label="Website"
-                        value={userProfile?.website}
-                        onPress={userProfile?.website ?
-                            () => openLink(`https://${userProfile.website}`) : undefined
-                        }
-                    />
-                    <ProfileItem
-                        icon="map-pin"
-                        label="Office Address"
-                        value={userProfile?.address}
-                    />
-                </Card>
-
-                {/* Account Settings */}
-                <Card style={styles.section}>
-                    <Text style={styles.sectionTitle}>ACCOUNT SETTINGS</Text>
+                    <View style={styles.statDivider} />
 
                     <TouchableOpacity
-                        style={styles.settingsItem}
-                        onPress={() => navigation.navigate('Notifications')}
+                        style={styles.editProfileBtn}
+                        onPress={() => navigation.navigate('EditProfile')}
+                        activeOpacity={0.85}
                     >
-                        <View style={styles.settingsIcon}>
-                            <Feather name="bell" size={18} color={colors.primary[400]} />
-                        </View>
-                        <Text style={styles.settingsItemText}>Notifications</Text>
-                        <Feather name="chevron-right" size={20} color={colors.text.tertiary} />
+                        <Feather name="edit-3" size={14} color="#FFFFFF" style={{ marginRight: 6 }} />
+                        <Text style={styles.editProfileBtnText}>Edit Profile</Text>
                     </TouchableOpacity>
+                </View>
 
-                    <TouchableOpacity style={styles.settingsItem}>
-                        <View style={styles.settingsIcon}>
-                            <Feather name="shield" size={18} color={colors.primary[400]} />
+                {/* ── Bio ── */}
+                {userProfile?.bio ? (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>ABOUT</Text>
+                        <View style={styles.bioCard}>
+                            <View style={styles.bioAccent} />
+                            <View style={styles.bioContent}>
+                                <MaterialCommunityIcons
+                                    name="format-quote-open"
+                                    size={22}
+                                    color={colors.blue[200]}
+                                    style={styles.quoteIcon}
+                                />
+                                <Text style={styles.bioText}>{userProfile.bio}</Text>
+                            </View>
                         </View>
-                        <Text style={styles.settingsItemText}>Privacy & Security</Text>
-                        <Feather name="chevron-right" size={20} color={colors.text.tertiary} />
-                    </TouchableOpacity>
+                    </View>
+                ) : null}
 
-                    <TouchableOpacity style={styles.settingsItem}>
-                        <View style={styles.settingsIcon}>
-                            <Feather name="help-circle" size={18} color={colors.primary[400]} />
+                {/* ── Contact Details ── */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>CONTACT DETAILS</Text>
+                    <View style={styles.card}>
+                        <ContactRow
+                            icon="mail"
+                            label="Email"
+                            value={userProfile?.email}
+                        />
+                        <ContactRow
+                            icon="phone"
+                            label="Phone"
+                            value={userProfile?.phone}
+                        />
+                        <ContactRow
+                            icon="map-pin"
+                            label="Address"
+                            value={userProfile?.address}
+                        />
+                    </View>
+                </View>
+
+                {/* ── Online ── */}
+                {(userProfile?.linkedIn || userProfile?.website) ? (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionTitle}>ONLINE</Text>
+                        <View style={styles.card}>
+                            {userProfile?.linkedIn && (
+                                <ContactRow
+                                    icon="linkedin"
+                                    label="LinkedIn"
+                                    value={userProfile.linkedIn}
+                                    onPress={() => openLink(`https://${userProfile.linkedIn}`)}
+                                />
+                            )}
+                            {userProfile?.website && (
+                                <ContactRow
+                                    icon="globe"
+                                    label="Website"
+                                    value={userProfile.website}
+                                    onPress={() => openLink(`https://${userProfile.website}`)}
+                                    isLast
+                                />
+                            )}
                         </View>
-                        <Text style={styles.settingsItemText}>Help & Support</Text>
-                        <Feather name="chevron-right" size={20} color={colors.text.tertiary} />
-                    </TouchableOpacity>
-                </Card>
+                    </View>
+                ) : null}
 
-                {/* Sign Out */}
-                <Button
-                    title="Sign Out"
-                    onPress={handleSignOut}
-                    variant="outline"
-                    fullWidth
-                    style={styles.signOutButton}
-                    icon={<Feather name="log-out" size={18} color={colors.primary[600]} />}
-                />
-
-                {/* App Version */}
-                <Text style={styles.version}>Netwify v1.0.0</Text>
+                {/* Footer spacer */}
+                <View style={{ height: spacing['2xl'] }} />
             </ScrollView>
         </SafeAreaView>
     );
@@ -245,198 +239,266 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: colors.background.primary,
     },
-    scrollView: {
-        flex: 1,
-    },
     scrollContent: {
-        paddingHorizontal: spacing.xl,
         paddingBottom: spacing['4xl'],
     },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+
+    // ── Hero ──
+    hero: {
+        height: HERO_HEIGHT,
+        backgroundColor: colors.blue[500],
         alignItems: 'center',
-        paddingHorizontal: spacing.xl,
-        paddingVertical: spacing.md,
+        justifyContent: 'flex-end',
+        paddingTop: spacing['4xl'], // top breathing room so avatar doesn't touch edge
+        paddingBottom: 52, // space for the floating card overlap
+        paddingHorizontal: spacing.lg,
+        position: 'relative',
+        overflow: 'hidden',
     },
-    title: {
-        fontSize: 28,
-        fontWeight: typography.fontWeight.bold,
-        color: colors.primary[600],
+    decorCircle1: {
+        position: 'absolute',
+        top: -40,
+        right: -40,
+        width: 140,
+        height: 140,
+        borderRadius: 70,
+        backgroundColor: 'rgba(255, 255, 255, 0.08)',
     },
-    editButton: {
-        width: 44,
-        height: 44,
+    decorCircle2: {
+        position: 'absolute',
+        bottom: -30,
+        left: -30,
+        width: 120,
+        height: 120,
+        borderRadius: 60,
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
+    },
+    settingsBtn: {
+        position: 'absolute',
+        top: spacing.lg,
+        right: spacing.lg,
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(255,255,255,0.15)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.2)',
+    },
+    avatarRing: {
+        position: 'relative',
+        width: 104,
+        height: 104,
+        borderRadius: 52,
+        borderWidth: 4,
+        borderColor: '#FFFFFF',
+        marginBottom: spacing.md,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 6,
+    },
+    avatarImage: {
+        width: 96,
+        height: 96,
+        borderRadius: 48,
+    },
+    avatarPlaceholder: {
+        width: 96,
+        height: 96,
+        borderRadius: 48,
+        backgroundColor: colors.blue[400],
         alignItems: 'center',
         justifyContent: 'center',
     },
-    profileWrapper: {
-        alignItems: 'center',
-        marginTop: spacing['2xl'],
-        marginBottom: spacing.xl,
+    avatarInitials: {
+        fontSize: 34,
+        fontWeight: typography.fontWeight.bold,
+        color: '#FFFFFF',
     },
-    avatarOverlap: {
-        zIndex: 1,
-        marginBottom: -40,
-        position: 'relative',
-        borderRadius: 999,
-        borderWidth: 4,
-        borderColor: '#FAFAFA',
-        padding: 4,
-        backgroundColor: '#FAFAFA',
-    },
-    avatarBorder: {
-    },
-    editAvatarButton: {
+    editBadge: {
         position: 'absolute',
         bottom: 2,
         right: 2,
-        width: 28,
-        height: 28,
-        borderRadius: 14,
-        backgroundColor: colors.accent[500],
+        width: 26,
+        height: 26,
+        borderRadius: 13,
+        backgroundColor: colors.blue[500],
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 2.5,
-        borderColor: '#FAFAFA',
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
         zIndex: 2,
     },
-    profileCard: {
-        width: '100%',
-        alignItems: 'center',
-        paddingVertical: spacing['2xl'],
-        backgroundColor: colors.primary[600],
-        borderRadius: borderRadius.xl,
-        ...shadows.lg,
-    },
-    profileName: {
+    heroName: {
         fontSize: typography.fontSize['2xl'],
         fontWeight: typography.fontWeight.bold,
-        color: colors.text.inverse,
-        marginBottom: spacing.xs,
-    },
-    profileRole: {
-        fontSize: typography.fontSize.base,
-        fontWeight: typography.fontWeight.medium,
-        color: colors.accent[500],
-        marginBottom: spacing.xs,
-    },
-    profileCompany: {
-        fontSize: typography.fontSize.sm,
-        color: colors.primary[200],
-        marginBottom: spacing.lg,
-    },
-    bioContainer: {
-        width: '100%',
-        paddingHorizontal: spacing['2xl'],
-        paddingTop: spacing.md,
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(255, 255, 255, 0.1)',
-        marginTop: spacing.sm,
-        marginBottom: spacing.xl,
-    },
-    profileBio: {
-        fontSize: typography.fontSize.sm,
-        color: colors.text.inverse,
-        textAlign: 'center',
-        lineHeight: 20,
-        opacity: 0.9,
-    },
-    editProfileButton: {
-        backgroundColor: colors.accent[500],
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingVertical: 18,
-        paddingHorizontal: spacing['3xl'],
-        borderRadius: borderRadius.full,
-        marginTop: spacing.sm,
-        ...shadows.md,
-    },
-    editIcon: {
-        marginRight: spacing.sm,
-    },
-    editProfileButtonText: {
         color: '#FFFFFF',
-        fontSize: typography.fontSize.lg, // Matching typography.fontSize.lg (18)
-        fontWeight: typography.fontWeight.bold,
+        marginBottom: 4,
+        textAlign: 'center',
     },
-    section: {
-        marginBottom: spacing.lg,
-        padding: spacing.xl,
-        borderRadius: borderRadius.lg,
-        backgroundColor: colors.background.secondary,
-        ...shadows.sm,
-    },
-    sectionTitle: {
-        fontSize: 12,
-        fontWeight: typography.fontWeight.bold,
-        color: colors.primary[400],
-        letterSpacing: 1.2,
+    heroRole: {
+        fontSize: typography.fontSize.sm,
+        color: 'rgba(255,255,255,0.75)',
+        fontWeight: typography.fontWeight.medium,
+        textAlign: 'center',
         marginBottom: spacing.md,
     },
-    profileItem: {
+
+    // ── Floating Stats Card ──
+    statsCard: {
+        marginHorizontal: spacing.lg,
+        marginTop: -28, // pull up over the hero
+        backgroundColor: colors.background.secondary,
+        borderRadius: borderRadius.xl,
+        paddingVertical: spacing.lg,
+        paddingHorizontal: spacing.xl,
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border.light,
+        justifyContent: 'space-between',
+        ...shadows.md,
+        borderWidth: 1,
+        borderColor: colors.border.light,
+        zIndex: 10,
     },
-    profileItemIcon: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        backgroundColor: colors.background.primary,
+    statItem: {
         alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: spacing.md,
     },
-    profileItemContent: {
-        flex: 1,
+    statNumber: {
+        fontSize: typography.fontSize['2xl'],
+        fontWeight: typography.fontWeight.bold,
+        color: colors.neutral[900],
     },
-    profileItemLabel: {
-        fontSize: 11,
-        color: colors.text.tertiary,
+    statLabel: {
+        fontSize: typography.fontSize.xs,
+        color: colors.neutral[500],
         fontWeight: typography.fontWeight.medium,
-        marginBottom: 2,
+        marginTop: 2,
+        letterSpacing: 0.4,
     },
-    profileItemValue: {
-        fontSize: typography.fontSize.base,
-        color: colors.text.primary,
-        fontWeight: typography.fontWeight.medium,
+    statDivider: {
+        width: 1,
+        height: 36,
+        backgroundColor: colors.border.light,
     },
-    settingsItem: {
+    editProfileBtn: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: spacing.md,
-        borderBottomWidth: 1,
-        borderBottomColor: colors.border.light,
+        backgroundColor: colors.blue[500],
+        paddingVertical: spacing.sm + 2,
+        paddingHorizontal: spacing.lg,
+        borderRadius: borderRadius.full,
+        shadowColor: colors.blue[500],
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.3,
+        shadowRadius: 6,
+        elevation: 3,
     },
-    settingsIcon: {
-        width: 36,
-        height: 36,
-        borderRadius: 10,
-        backgroundColor: colors.background.primary,
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: spacing.md,
-    },
-    settingsItemText: {
-        flex: 1,
-        fontSize: typography.fontSize.base,
-        color: colors.text.primary,
-        fontWeight: typography.fontWeight.medium,
-    },
-    signOutButton: {
-        marginTop: spacing.md,
-        marginBottom: spacing.xl,
-        borderColor: colors.border.medium,
-    },
-    version: {
+    editProfileBtnText: {
+        color: '#FFFFFF',
         fontSize: typography.fontSize.sm,
-        color: colors.text.tertiary,
-        textAlign: 'center',
-        marginBottom: spacing['2xl'],
+        fontWeight: typography.fontWeight.bold,
+    },
+
+    // ── Sections ──
+    section: {
+        marginTop: spacing.xl,
+        paddingHorizontal: spacing.lg,
+    },
+    sectionTitle: {
+        fontSize: typography.fontSize.xs,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.neutral[500],
+        letterSpacing: 1.2,
+        marginBottom: spacing.sm,
+        marginLeft: 2,
+    },
+    card: {
+        backgroundColor: colors.background.secondary,
+        borderRadius: borderRadius.xl,
+        paddingHorizontal: spacing.base,
+        borderWidth: 1,
+        borderColor: colors.border.light,
+        ...shadows.sm,
+    },
+
+    // ── Bio Card ──
+    bioCard: {
+        backgroundColor: colors.background.secondary,
+        borderRadius: borderRadius.xl,
+        borderWidth: 1,
+        borderColor: colors.border.light,
+        flexDirection: 'row',
+        overflow: 'hidden',
+        ...shadows.sm,
+    },
+    bioAccent: {
+        width: 4,
+        backgroundColor: colors.blue[500],
+    },
+    bioContent: {
+        flex: 1,
+        padding: spacing.lg,
+    },
+    quoteIcon: {
+        marginBottom: 4,
+    },
+    bioText: {
+        fontSize: typography.fontSize.sm,
+        color: colors.neutral[600],
+        lineHeight: 22,
+    },
+
+    // ── Contact Rows ──
+    contactRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: spacing.base,
+    },
+    contactRowBorder: {
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border.light,
+    },
+    contactIconBox: {
+        width: 36,
+        height: 36,
+        borderRadius: 10,
+        backgroundColor: colors.blue[50],
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: spacing.md,
+    },
+    contactContent: {
+        flex: 1,
+    },
+    contactLabel: {
+        fontSize: 11,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.neutral[500],
+        letterSpacing: 0.6,
+        marginBottom: 2,
+        textTransform: 'uppercase',
+    },
+    contactValue: {
+        fontSize: typography.fontSize.base,
+        color: colors.neutral[900],
+        fontWeight: typography.fontWeight.medium,
+    },
+    contactValueEmpty: {
+        color: colors.neutral[400],
+        fontStyle: 'italic',
+        fontSize: typography.fontSize.sm,
+    },
+    contactChevron: {
+        width: 28,
+        height: 28,
+        borderRadius: 8,
+        backgroundColor: colors.blue[50],
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginLeft: spacing.sm,
     },
 });
 

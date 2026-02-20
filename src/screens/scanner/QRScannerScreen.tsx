@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -7,19 +7,24 @@ import {
     Alert,
     Dimensions,
     StatusBar,
+    Animated,
+    Easing,
+    Platform,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, BarcodeScanningResult } from 'expo-camera';
 import { doc, getDoc, collection, addDoc } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../config/firebase';
-import { Button, Card, Avatar } from '../../components/ui';
 import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
 import { QRCodeData, UserProfile, ConnectionRequest } from '../../types';
 
-const { width } = Dimensions.get('window');
-const SCANNER_SIZE = width * 0.7;
+const { width, height } = Dimensions.get('window');
+const SCANNER_SIZE = width * 0.75;
+const SCREEN_HEIGHT = height;
+const SCREEN_WIDTH = width;
 
 export const QRScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const { user, userProfile } = useAuth();
@@ -27,12 +32,39 @@ export const QRScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     const [scanned, setScanned] = useState(false);
     const [scannedUser, setScannedUser] = useState<UserProfile | null>(null);
     const [sending, setSending] = useState(false);
+    const [flashMode, setFlashMode] = useState<'on' | 'off'>('off');
+
+    // Animation for scanning line
+    const scanLineAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
         if (!permission) {
             requestPermission();
         }
     }, [permission, requestPermission]);
+
+    useEffect(() => {
+        startScanAnimation();
+    }, []);
+
+    const startScanAnimation = () => {
+        scanLineAnim.setValue(0);
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(scanLineAnim, {
+                    toValue: 1,
+                    duration: 2000,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(scanLineAnim, {
+                    toValue: 0,
+                    duration: 0, // Reset instantly
+                    useNativeDriver: true,
+                })
+            ])
+        ).start();
+    };
 
     const handleBarCodeScanned = async ({ data }: BarcodeScanningResult) => {
         if (scanned) return;
@@ -110,11 +142,15 @@ export const QRScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) =
         setScanned(false);
     };
 
+    const toggleFlash = () => {
+        setFlashMode(prev => prev === 'on' ? 'off' : 'on');
+    };
+
     if (!permission) {
         return (
             <SafeAreaView style={styles.container}>
                 <View style={styles.centerContent}>
-                    <Text style={styles.permissionText}>Requesting camera permission...</Text>
+                    <ActivityIndicator size="large" color={colors.blue[500]} />
                 </View>
             </SafeAreaView>
         );
@@ -125,17 +161,25 @@ export const QRScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) =
             <SafeAreaView style={styles.permissionContainer}>
                 <View style={styles.centerContent}>
                     <View style={styles.iconCircle}>
-                        <Feather name="camera-off" size={40} color={colors.accent[500]} />
+                        <Feather name="camera-off" size={40} color={colors.blue[500]} />
                     </View>
                     <Text style={styles.permissionTitle}>Camera Access Needed</Text>
                     <Text style={styles.permissionText}>
-                        Please enable camera access in your settings to scan QR codes and connect with others.
+                        Netwify needs camera access to scan QR codes and connect you with others.
                     </Text>
-                    <Button
-                        title="Grant Permission"
-                        onPress={requestPermission}
+                    <TouchableOpacity
                         style={styles.permissionButton}
-                    />
+                        onPress={requestPermission}
+                        activeOpacity={0.8}
+                    >
+                        <Text style={styles.permissionButtonText}>Grant Access</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.secondaryButton}
+                        onPress={() => navigation.goBack()}
+                    >
+                        <Text style={styles.secondaryButtonText}>Not Now</Text>
+                    </TouchableOpacity>
                 </View>
             </SafeAreaView>
         );
@@ -143,61 +187,70 @@ export const QRScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
     if (scannedUser) {
         return (
-            <SafeAreaView style={styles.confirmContainer} edges={['top']}>
-                <StatusBar barStyle="dark-content" />
+            <SafeAreaView style={styles.container} edges={['top']}>
+                <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
                 <View style={styles.header}>
                     <TouchableOpacity onPress={handleCancel} style={styles.closeButton}>
-                        <Feather name="x" size={24} color={colors.text.primary} />
+                        <Feather name="x" size={24} color={colors.neutral[800]} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Connect</Text>
+                    <Text style={styles.headerTitle}>User Found</Text>
                     <View style={{ width: 44 }} />
                 </View>
 
-                <View style={styles.confirmContent}>
-                    <View style={styles.cardWrapper}>
-                        <View style={styles.avatarOverlap}>
-                            <Avatar
-                                source={scannedUser.photoURL}
-                                name={scannedUser.displayName}
-                                size="xl"
-                                style={styles.avatarBorder}
-                            />
-                        </View>
-                        <Card variant="elevated" style={styles.userCard}>
-                            <View style={{ height: 40 }} />
-                            <Text style={styles.userName}>{scannedUser.displayName}</Text>
-                            <Text style={styles.userRole}>
-                                {scannedUser.jobTitle}
-                            </Text>
-                            {scannedUser.company && (
-                                <Text style={styles.userCompany}>{scannedUser.company}</Text>
-                            )}
-
-                            {scannedUser.bio && (
-                                <View style={styles.bioContainer}>
-                                    <Text style={styles.userBio}>{scannedUser.bio}</Text>
+                <View style={styles.foundContent}>
+                    <View style={styles.userCard}>
+                        <View style={styles.avatarContainer}>
+                            {scannedUser.photoURL ? (
+                                <Animated.Image
+                                    source={{ uri: scannedUser.photoURL }}
+                                    style={styles.avatarImage}
+                                />
+                            ) : (
+                                <View style={styles.avatarPlaceholder}>
+                                    <Text style={styles.avatarInitials}>
+                                        {scannedUser.displayName.charAt(0)}
+                                    </Text>
                                 </View>
                             )}
-                        </Card>
-                    </View>
+                            <View style={styles.verifiedBadge}>
+                                <MaterialCommunityIcons name="check-decagram" size={20} color={colors.blue[500]} />
+                            </View>
+                        </View>
 
-                    <Text style={styles.confirmInstruction}>
-                        Would you like to send a connection request?
-                    </Text>
+                        <Text style={styles.userName}>{scannedUser.displayName}</Text>
+                        <Text style={styles.userRole}>{scannedUser.jobTitle}</Text>
+                        {scannedUser.company && (
+                            <Text style={styles.userCompany}>{scannedUser.company}</Text>
+                        )}
 
-                    <View style={styles.confirmActions}>
-                        <Button
-                            title="Not Now"
-                            onPress={handleCancel}
-                            variant="outline"
-                            style={styles.actionButton}
-                        />
-                        <Button
-                            title="Send Request"
-                            onPress={handleSendRequest}
-                            loading={sending}
-                            style={{ ...styles.actionButton, backgroundColor: colors.accent[500] }}
-                        />
+                        <View style={styles.divider} />
+
+                        <Text style={styles.connectText}>
+                            Would you like to connect with {scannedUser.displayName.split(' ')[0]}?
+                        </Text>
+
+                        <View style={styles.actionButtons}>
+                            <TouchableOpacity
+                                style={styles.cancelButton}
+                                onPress={handleCancel}
+                            >
+                                <Text style={styles.cancelButtonText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.connectButton}
+                                onPress={handleSendRequest}
+                                disabled={sending}
+                            >
+                                {sending ? (
+                                    <ActivityIndicator color="#FFFFFF" size="small" />
+                                ) : (
+                                    <>
+                                        <Feather name="user-plus" size={18} color="#FFFFFF" />
+                                        <Text style={styles.connectButtonText}>Connect</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
             </SafeAreaView>
@@ -205,43 +258,77 @@ export const QRScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     }
 
     return (
-        <View style={styles.scannerRoot}>
-            <StatusBar barStyle="light-content" />
+        <View style={styles.scannerContainer}>
+            <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+
             <CameraView
+                style={StyleSheet.absoluteFill}
                 onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
                 barcodeScannerSettings={{
                     barcodeTypes: ["qr"],
                 }}
-                style={StyleSheet.absoluteFillObject}
+                enableTorch={flashMode === 'on'}
             />
 
-            <SafeAreaView style={styles.scannerUI} edges={['top']}>
-                <View style={styles.scannerHeader}>
-                    <TouchableOpacity
-                        onPress={() => navigation.goBack()}
-                        style={styles.backButton}
-                    >
-                        <Feather name="arrow-left" size={24} color={colors.text.inverse} />
-                    </TouchableOpacity>
-                    <Text style={styles.scannerTitle}>Scan QR Code</Text>
-                    <View style={{ width: 44 }} />
-                </View>
-
-                <View style={styles.scannerOverlay}>
-                    <View style={styles.frameContainer}>
-                        <View style={styles.scannerFrame}>
-                            <View style={[styles.corner, styles.topLeft]} />
-                            <View style={[styles.corner, styles.topRight]} />
-                            <View style={[styles.corner, styles.bottomLeft]} />
-                            <View style={[styles.corner, styles.bottomRight]} />
-                            <View style={styles.scanLine} />
-                        </View>
+            {/* Dark Overlay with cutout */}
+            <View style={styles.overlay}>
+                <View style={styles.overlayTop} />
+                <View style={styles.overlayCenterRow}>
+                    <View style={styles.overlaySide} />
+                    <View style={styles.window}>
+                        {/* Animated Scan Line */}
+                        <Animated.View
+                            style={[
+                                styles.laserLine,
+                                {
+                                    transform: [{
+                                        translateY: scanLineAnim.interpolate({
+                                            inputRange: [0, 1],
+                                            outputRange: [0, SCANNER_SIZE]
+                                        })
+                                    }]
+                                }
+                            ]}
+                        />
+                        {/* Corner Markers */}
+                        <View style={[styles.corner, styles.topLeft]} />
+                        <View style={[styles.corner, styles.topRight]} />
+                        <View style={[styles.corner, styles.bottomLeft]} />
+                        <View style={[styles.corner, styles.bottomRight]} />
                     </View>
+                    <View style={styles.overlaySide} />
                 </View>
+                <View style={styles.overlayBottom}>
+                    <Text style={styles.instructionText}>
+                        Align the QR code within the frame to scan
+                    </Text>
+                </View>
+            </View>
 
-                <View style={styles.scannerFooter}>
-                    <Text style={styles.footerText}>Align the QR code within the frame</Text>
-                </View>
+            {/* Header Controls */}
+            <SafeAreaView style={styles.controlsHeader} edges={['top']}>
+                <TouchableOpacity
+                    style={styles.controlButton}
+                    onPress={() => navigation.goBack()}
+                >
+                    <Feather name="arrow-left" size={24} color="#FFFFFF" />
+                </TouchableOpacity>
+
+                <Text style={styles.scannerTitle}>Scan QR Code</Text>
+
+                <TouchableOpacity
+                    style={[
+                        styles.controlButton,
+                        flashMode === 'on' && styles.controlButtonActive
+                    ]}
+                    onPress={toggleFlash}
+                >
+                    <Feather
+                        name={flashMode === 'on' ? "zap" : "zap-off"}
+                        size={24}
+                        color={flashMode === 'on' ? colors.blue[500] : "#FFFFFF"}
+                    />
+                </TouchableOpacity>
             </SafeAreaView>
         </View>
     );
@@ -250,241 +337,298 @@ export const QRScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background.primary,
+        backgroundColor: '#FFFFFF',
     },
+    scannerContainer: {
+        flex: 1,
+        backgroundColor: '#000000',
+    },
+
+    // Permission State
     permissionContainer: {
         flex: 1,
-        backgroundColor: colors.background.primary,
-    },
-    confirmContainer: {
-        flex: 1,
-        backgroundColor: colors.background.primary,
-    },
-    scannerRoot: {
-        flex: 1,
-        backgroundColor: '#000',
-    },
-    centerContent: {
-        flex: 1,
+        backgroundColor: '#FFFFFF',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingHorizontal: spacing['2xl'],
+    },
+    centerContent: {
+        alignItems: 'center',
+        padding: spacing.xl,
+        width: '100%',
     },
     iconCircle: {
         width: 80,
         height: 80,
         borderRadius: 40,
-        backgroundColor: colors.primary[50], // Light purple background
+        backgroundColor: colors.blue[50],
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: spacing.xl,
+        marginBottom: spacing.lg,
     },
     permissionTitle: {
-        fontSize: typography.fontSize.xl,
+        fontSize: typography.fontSize['2xl'],
         fontWeight: typography.fontWeight.bold,
-        color: colors.primary[600],
+        color: colors.neutral[900],
         marginBottom: spacing.sm,
-        textAlign: 'center',
     },
     permissionText: {
         fontSize: typography.fontSize.base,
-        color: colors.text.secondary,
+        color: colors.neutral[500],
         textAlign: 'center',
-        lineHeight: 22,
         marginBottom: spacing['2xl'],
+        lineHeight: 24,
     },
     permissionButton: {
-        width: '100%',
-        backgroundColor: colors.accent[500],
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: spacing.xl,
+        backgroundColor: colors.blue[500],
         paddingVertical: spacing.md,
-    },
-    headerTitle: {
-        fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.bold,
-        color: colors.primary[600],
-    },
-    closeButton: {
-        width: 44,
-        height: 44,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    confirmContent: {
-        flex: 1,
-        alignItems: 'center',
         paddingHorizontal: spacing.xl,
-        paddingTop: spacing['3xl'],
-    },
-    cardWrapper: {
-        width: '100%',
-        maxWidth: 400,
-        alignItems: 'center',
-        marginBottom: spacing['2xl'],
-    },
-    avatarOverlap: {
-        zIndex: 1,
-        marginBottom: -40,
-        ...shadows.lg,
-    },
-    avatarBorder: {
-        borderWidth: 4,
-        borderColor: colors.background.primary,
-    },
-    userCard: {
-        width: '100%',
-        backgroundColor: colors.primary[600],
         borderRadius: borderRadius.xl,
-        padding: spacing.xl,
+        width: '100%',
         alignItems: 'center',
-        ...shadows.lg,
-    },
-    userName: {
-        fontSize: typography.fontSize['2xl'],
-        fontWeight: typography.fontWeight.bold,
-        color: colors.text.inverse,
-        marginBottom: spacing.xs,
-    },
-    userRole: {
-        fontSize: typography.fontSize.base,
-        fontWeight: typography.fontWeight.medium,
-        color: colors.accent[500],
-        marginBottom: spacing.xs,
-    },
-    userCompany: {
-        fontSize: typography.fontSize.sm,
-        color: colors.primary[200],
         marginBottom: spacing.md,
     },
-    bioContainer: {
-        width: '100%',
-        paddingTop: spacing.md,
-        borderTopWidth: 1,
-        borderTopColor: 'rgba(255, 255, 255, 0.1)',
-        marginTop: spacing.md,
-    },
-    userBio: {
-        fontSize: typography.fontSize.sm,
-        color: colors.text.inverse,
-        textAlign: 'center',
-        lineHeight: 20,
-        opacity: 0.9,
-    },
-    confirmInstruction: {
+    permissionButtonText: {
+        color: '#FFFFFF',
+        fontWeight: typography.fontWeight.bold,
         fontSize: typography.fontSize.base,
-        color: colors.text.secondary,
-        textAlign: 'center',
-        marginBottom: spacing.xl,
     },
-    confirmActions: {
-        flexDirection: 'row',
-        gap: spacing.md,
-        width: '100%',
-        maxWidth: 400,
+    secondaryButton: {
+        paddingVertical: spacing.sm,
     },
-    actionButton: {
-        flex: 1,
+    secondaryButtonText: {
+        color: colors.neutral[500],
+        fontSize: typography.fontSize.sm,
+        fontWeight: typography.fontWeight.medium,
     },
-    scannerUI: {
-        flex: 1,
-        backgroundColor: 'transparent',
-    },
-    scannerHeader: {
+
+    // Scanner UI
+    controlsHeader: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        paddingHorizontal: spacing.xl,
-        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.lg,
+        paddingTop: spacing.md,
+        zIndex: 50,
     },
-    backButton: {
+    controlButton: {
         width: 44,
         height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(0,0,0,0.3)',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: 'rgba(0,0,0,0.3)',
-        borderRadius: 22,
+    },
+    controlButtonActive: {
+        backgroundColor: '#FFFFFF',
     },
     scannerTitle: {
         fontSize: typography.fontSize.lg,
         fontWeight: typography.fontWeight.bold,
-        color: colors.text.inverse,
-        textShadowColor: 'rgba(0, 0, 0, 0.5)',
+        color: '#FFFFFF',
+        textShadowColor: 'rgba(0,0,0,0.5)',
         textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 3,
+        textShadowRadius: 4,
     },
-    scannerOverlay: {
+
+    // Overlay
+    overlay: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 10,
+    },
+    overlayTop: {
+        height: (SCREEN_HEIGHT - SCANNER_SIZE) / 2,
+        width: SCREEN_WIDTH,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+    },
+    overlayCenterRow: {
+        height: SCANNER_SIZE,
+        flexDirection: 'row',
+    },
+    overlaySide: {
         flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
+        backgroundColor: 'rgba(0,0,0,0.6)',
     },
-    frameContainer: {
+    window: {
         width: SCANNER_SIZE,
         height: SCANNER_SIZE,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    scannerFrame: {
-        width: SCANNER_SIZE,
-        height: SCANNER_SIZE,
+        backgroundColor: 'transparent',
         position: 'relative',
+    },
+    overlayBottom: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        alignItems: 'center',
+        paddingTop: spacing.xl,
+    },
+    instructionText: {
+        color: '#FFFFFF',
+        fontSize: typography.fontSize.base,
+        fontWeight: typography.fontWeight.medium,
+        opacity: 0.8,
+        marginTop: spacing.lg,
+    },
+
+    // Laser & Corners
+    laserLine: {
+        height: 2,
+        width: '100%',
+        backgroundColor: colors.blue[500], // Blue laser
+        shadowColor: colors.blue[500],
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.8,
+        shadowRadius: 10,
+        elevation: 5,
     },
     corner: {
         position: 'absolute',
+        width: 30,
+        height: 30,
+        borderColor: '#FFFFFF',
+        borderWidth: 4,
+        borderRadius: 4,
+    },
+    topLeft: { top: 0, left: 0, borderRightWidth: 0, borderBottomWidth: 0 },
+    topRight: { top: 0, right: 0, borderLeftWidth: 0, borderBottomWidth: 0 },
+    bottomLeft: { bottom: 0, left: 0, borderRightWidth: 0, borderTopWidth: 0 },
+    bottomRight: { bottom: 0, right: 0, borderLeftWidth: 0, borderTopWidth: 0 },
+
+    // Found User UI
+    header: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.md,
+    },
+    headerTitle: {
+        fontSize: typography.fontSize.xl,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.neutral[900],
+    },
+    closeButton: {
         width: 40,
         height: 40,
-        borderColor: colors.accent[500],
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderRadius: 20,
+        backgroundColor: '#F3F4F6',
     },
-    topLeft: {
-        top: 0,
-        left: 0,
-        borderTopWidth: 5,
-        borderLeftWidth: 5,
-        borderTopLeftRadius: 15,
+    foundContent: {
+        flex: 1,
+        justifyContent: 'center',
+        padding: spacing.xl,
+        backgroundColor: '#F9FAFB',
     },
-    topRight: {
-        top: 0,
-        right: 0,
-        borderTopWidth: 5,
-        borderRightWidth: 5,
-        borderTopRightRadius: 15,
-    },
-    bottomLeft: {
-        bottom: 0,
-        left: 0,
-        borderBottomWidth: 5,
-        borderLeftWidth: 5,
-        borderBottomLeftRadius: 15,
-    },
-    bottomRight: {
-        bottom: 0,
-        right: 0,
-        borderBottomWidth: 5,
-        borderRightWidth: 5,
-        borderBottomRightRadius: 15,
-    },
-    scanLine: {
-        position: 'absolute',
-        width: '100%',
-        height: 2,
-        backgroundColor: colors.accent[500],
-        opacity: 0.5,
-        top: '50%',
-    },
-    scannerFooter: {
+    userCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: borderRadius['2xl'],
         padding: spacing['2xl'],
         alignItems: 'center',
-        backgroundColor: 'rgba(0,0,0,0.3)',
+        ...shadows.lg,
     },
-    footerText: {
-        fontSize: typography.fontSize.base,
-        color: colors.text.inverse,
+    avatarContainer: {
+        position: 'relative',
+        marginBottom: spacing.lg,
+    },
+    avatarImage: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        borderWidth: 3,
+        borderColor: colors.blue[500],
+    },
+    avatarPlaceholder: {
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        backgroundColor: colors.blue[100],
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 3,
+        borderColor: colors.blue[500],
+    },
+    avatarInitials: {
+        fontSize: 32,
+        fontWeight: 'bold',
+        color: colors.blue[600],
+    },
+    verifiedBadge: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        padding: 2,
+    },
+    userName: {
+        fontSize: typography.fontSize['2xl'],
+        fontWeight: typography.fontWeight.bold,
+        color: colors.neutral[900],
+        marginBottom: 4,
         textAlign: 'center',
+    },
+    userRole: {
+        fontSize: typography.fontSize.base,
+        color: colors.blue[600],
         fontWeight: typography.fontWeight.medium,
+        marginBottom: 2,
+        textAlign: 'center',
+    },
+    userCompany: {
+        fontSize: typography.fontSize.sm,
+        color: colors.neutral[500],
+        marginBottom: spacing.lg,
+        textAlign: 'center',
+    },
+    divider: {
+        width: '100%',
+        height: 1,
+        backgroundColor: '#F3F4F6',
+        marginVertical: spacing.lg,
+    },
+    connectText: {
+        fontSize: typography.fontSize.base,
+        color: colors.neutral[600],
+        textAlign: 'center',
+        marginBottom: spacing.xl,
+        lineHeight: 24,
+    },
+    actionButtons: {
+        flexDirection: 'row',
+        gap: spacing.md,
+        width: '100%',
+    },
+    cancelButton: {
+        flex: 1,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.xl,
+        borderWidth: 1,
+        borderColor: colors.neutral[200],
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+    },
+    cancelButtonText: {
+        color: colors.neutral[600],
+        fontWeight: typography.fontWeight.bold,
+    },
+    connectButton: {
+        flex: 1,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        gap: spacing.sm,
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.xl,
+        backgroundColor: colors.blue[500],
+        ...shadows.md,
+    },
+    connectButtonText: {
+        color: '#FFFFFF',
+        fontWeight: typography.fontWeight.bold,
     },
 });
 

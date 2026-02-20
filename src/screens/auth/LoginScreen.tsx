@@ -9,10 +9,13 @@ import {
     TouchableOpacity,
     Alert,
     Keyboard,
+    ActivityIndicator,
+    Image,
+    Dimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Feather } from '@expo/vector-icons';
+import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Button, Input } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import { colors, typography, spacing, borderRadius } from '../../theme';
@@ -24,12 +27,15 @@ interface Props {
     navigation: LoginScreenNavigationProp;
 }
 
+const { width } = Dimensions.get('window');
+
 export const LoginScreen: React.FC<Props> = ({ navigation }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
     const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+    const [loginError, setLoginError] = useState<string | null>(null);
 
     const { signIn } = useAuth();
 
@@ -44,8 +50,6 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
         if (!password) {
             newErrors.password = 'Password is required';
-        } else if (password.length < 6) {
-            newErrors.password = 'Password must be at least 6 characters';
         }
 
         setErrors(newErrors);
@@ -53,22 +57,28 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
     };
 
     const handleLogin = async () => {
+        Keyboard.dismiss();
         if (!validateForm()) return;
-
+        setLoginError(null);
         setLoading(true);
         try {
             await signIn(email.trim(), password);
-            // Navigation will happen automatically via AuthContext
         } catch (error: any) {
-            let message = 'An error occurred during login';
-            if (error.code === 'auth/user-not-found') {
-                message = 'No account found with this email';
-            } else if (error.code === 'auth/wrong-password') {
-                message = 'Incorrect password';
+            let message = 'An error occurred. Please try again.';
+            if (
+                error.code === 'auth/user-not-found' ||
+                error.code === 'auth/invalid-credential' ||
+                error.code === 'auth/wrong-password'
+            ) {
+                message = 'Incorrect email or password. Please try again.';
             } else if (error.code === 'auth/invalid-email') {
-                message = 'Invalid email address';
+                message = 'The email address is not valid.';
+            } else if (error.code === 'auth/too-many-requests') {
+                message = 'Too many failed attempts. Please try again later.';
+            } else if (error.code === 'auth/user-disabled') {
+                message = 'This account has been disabled.';
             }
-            Alert.alert('Login Failed', message);
+            setLoginError(message);
         } finally {
             setLoading(false);
         }
@@ -85,49 +95,73 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
                     keyboardShouldPersistTaps="handled"
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Header */}
+                    {/* Header Graphic */}
+                    <View style={styles.graphicContainer}>
+                        <View style={styles.logoContainer}>
+                            <MaterialCommunityIcons name="access-point-network" size={40} color="#FFFFFF" />
+                        </View>
+                    </View>
+
+                    {/* Header Text */}
                     <View style={styles.header}>
+                        <Text style={styles.title}>Welcome Back</Text>
+                        <Text style={styles.subtitle}>Sign in to continue networking</Text>
                     </View>
 
                     {/* Form */}
                     <View style={styles.form}>
-                        <Text style={styles.title}>Welcome back</Text>
-                        <Text style={styles.subtitle}>Sign in to continue networking</Text>
-
                         <Input
                             label="Email"
-                            placeholder="Enter your email"
+                            placeholder="hello@example.com"
                             value={email}
                             onChangeText={setEmail}
                             keyboardType="email-address"
                             autoCapitalize="none"
                             autoComplete="email"
                             error={errors.email}
-                            leftIcon={<Feather name="mail" size={20} color={colors.text.tertiary} />}
+                            leftIcon={<Feather name="mail" size={20} color={colors.neutral[400]} />}
+                            containerStyle={styles.inputContainer}
                         />
 
                         <Input
                             label="Password"
-                            placeholder="Enter your password"
+                            placeholder="••••••••"
                             value={password}
                             onChangeText={setPassword}
                             secureTextEntry={!showPassword}
                             autoCapitalize="none"
                             error={errors.password}
-                            leftIcon={<Feather name="lock" size={20} color={colors.text.tertiary} />}
+                            leftIcon={<Feather name="lock" size={20} color={colors.neutral[400]} />}
                             rightIcon={
                                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
                                     <Feather
-                                        name={showPassword ? 'eye-off' : 'eye'}
+                                        name={showPassword ? 'eye' : 'eye-off'}
                                         size={20}
-                                        color={colors.text.tertiary}
+                                        color={colors.neutral[400]}
                                     />
                                 </TouchableOpacity>
                             }
+                            containerStyle={styles.inputContainer}
                         />
 
+                        {/* Forgot Password Link */}
+                        <TouchableOpacity
+                            style={styles.forgotPasswordContainer}
+                            onPress={() => Alert.alert('Coming Soon', 'Forgot password flow will be implemented here.')}
+                        >
+                            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                        </TouchableOpacity>
+
+                        {/* Inline Login Error */}
+                        {loginError ? (
+                            <View style={styles.errorBanner}>
+                                <Feather name="alert-circle" size={15} color={colors.error || '#DC2626'} style={{ marginRight: 8 }} />
+                                <Text style={styles.errorBannerText}>{loginError}</Text>
+                            </View>
+                        ) : null}
+
                         <Button
-                            title="Sign In"
+                            title={loading ? "Signing In..." : "Sign In"}
                             onPress={handleLogin}
                             loading={loading}
                             fullWidth
@@ -136,14 +170,11 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
                         />
                     </View>
 
-                    {/* Footer */}
+                    {/* Footer - Sign Up Link */}
                     <View style={styles.footer}>
                         <Text style={styles.footerText}>Don't have an account?</Text>
-                        <TouchableOpacity onPress={() => {
-                            Keyboard.dismiss();
-                            navigation.navigate('SignUp');
-                        }}>
-                            <Text style={styles.footerLink}>Sign Up</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
+                            <Text style={styles.signUpLink}>Sign Up</Text>
                         </TouchableOpacity>
                     </View>
                 </ScrollView>
@@ -155,7 +186,7 @@ export const LoginScreen: React.FC<Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: colors.background.primary,
+        backgroundColor: '#FFFFFF',
     },
     keyboardView: {
         flex: 1,
@@ -163,58 +194,101 @@ const styles = StyleSheet.create({
     scrollContent: {
         flexGrow: 1,
         paddingHorizontal: spacing.xl,
+        paddingTop: spacing['4xl'],
+        paddingBottom: spacing['2xl'],
+    },
+    graphicContainer: {
+        alignItems: 'center',
+        marginBottom: spacing.xl,
+    },
+    logoContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: 24,
+        backgroundColor: colors.blue[500],
+        alignItems: 'center',
         justifyContent: 'center',
+        shadowColor: colors.blue[500],
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 4,
     },
     header: {
         alignItems: 'center',
-        marginBottom: spacing['3xl'],
-    },
-    logo: {
-        fontSize: typography.fontSize['4xl'],
-        fontWeight: typography.fontWeight.bold,
-        color: colors.primary[600],
-        marginBottom: spacing.xs,
-    },
-    tagline: {
-        fontSize: typography.fontSize.base,
-        color: colors.text.secondary,
-        textAlign: 'center',
         marginBottom: spacing.xl,
     },
-    form: {
-        marginBottom: spacing['2xl'],
-    },
     title: {
-        fontSize: 32, // Larger title as per design
+        fontSize: 28,
         fontWeight: typography.fontWeight.bold,
-        color: colors.text.primary,
+        color: colors.neutral[900],
         marginBottom: spacing.xs,
     },
     subtitle: {
         fontSize: typography.fontSize.base,
-        color: colors.text.secondary,
-        marginBottom: spacing['2xl'], // More space after subtitle
+        color: colors.neutral[500],
+        textAlign: 'center',
+    },
+    form: {
+        width: '100%',
+    },
+    inputContainer: {
+        marginBottom: spacing.md,
+    },
+    forgotPasswordContainer: {
+        alignSelf: 'flex-end',
+        marginBottom: spacing.xl,
+        marginTop: spacing.xs,
+    },
+    forgotPasswordText: {
+        color: colors.blue[600],
+        fontWeight: typography.fontWeight.medium,
+        fontSize: typography.fontSize.sm,
     },
     loginButton: {
-        marginTop: spacing.lg, // More space before button
-        backgroundColor: colors.primary[600], // Ensure correct primary color
-        height: 56, // Taller button
+        backgroundColor: colors.blue[600],
+        height: 56,
         borderRadius: borderRadius.xl,
+        shadowColor: colors.blue[500],
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    errorBanner: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FEF2F2',
+        borderWidth: 1,
+        borderColor: '#FECACA',
+        borderRadius: borderRadius.lg,
+        paddingVertical: spacing.sm + 2,
+        paddingHorizontal: spacing.md,
+        marginBottom: spacing.md,
+    },
+    errorBannerText: {
+        flex: 1,
+        fontSize: typography.fontSize.sm,
+        color: '#DC2626',
+        fontWeight: typography.fontWeight.medium,
+        lineHeight: 20,
     },
     footer: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
-        gap: spacing.xs,
+        marginTop: 'auto',
+        paddingTop: spacing.xl,
     },
     footerText: {
         fontSize: typography.fontSize.base,
-        color: colors.text.tertiary,
+        color: colors.neutral[500],
+        marginRight: spacing.xs,
     },
-    footerLink: {
+    signUpLink: {
         fontSize: typography.fontSize.base,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.accent[500], // Use accent color for "Sign up"
+        fontWeight: typography.fontWeight.bold,
+        color: colors.blue[600],
     },
 });
 

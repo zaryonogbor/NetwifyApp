@@ -6,17 +6,42 @@ import {
     ScrollView,
     TouchableOpacity,
     RefreshControl,
-    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
 import { collection, query, where, orderBy, onSnapshot, limit } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../config/firebase';
-import { Card, Avatar, Button } from '../../components/ui';
-import { acceptConnectionRequest, declineConnectionRequest } from '../../services/connectionService';
-import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
+import { Avatar } from '../../components/ui';
+import { QuickActionSection, NetworkingSnapshot, NeedsAttentionCard } from '../../components/home';
+import { colors, typography, spacing, borderRadius } from '../../theme';
 import { Contact, ConnectionRequest } from '../../types';
+
+// Helper to get relative time string
+const getRelativeTime = (date: Date | any): string => {
+    if (!date) return '';
+    const now = new Date();
+    const d = date?.toDate ? date.toDate() : new Date(date);
+    const diffMs = now.getTime() - d.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    if (diffHours < 24) return `${diffHours} hours ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    return d.toLocaleDateString();
+};
+
+// Helper to get initials
+const getInitials = (name: string): string => {
+    const parts = name.trim().split(' ');
+    if (parts.length === 0) return '?';
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[parts.length - 1].charAt(0)).toUpperCase();
+};
 
 export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const { userProfile, user } = useAuth();
@@ -69,6 +94,35 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
         setTimeout(() => setRefreshing(false), 1000);
     };
 
+    // Derive "needs attention" items from contacts
+    const needsAttentionItems = recentContacts
+        .filter((c) => !c.aiSummary || !c.lastInteractionAt)
+        .slice(0, 3)
+        .map((c) => ({
+            id: c.id,
+            name: c.displayName,
+            initials: getInitials(c.displayName),
+            reason: !c.aiSummary ? 'No summary' : 'Follow-up due',
+        }));
+
+    // Count new connections (within last 7 days)
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const newConnectionsCount = recentContacts.filter((c) => {
+        const d = (c.connectedAt as any)?.toDate
+            ? (c.connectedAt as any).toDate()
+            : new Date(c.connectedAt);
+        return d >= oneWeekAgo;
+    }).length;
+
+    // Check if a contact is "new" (connected within last 24 hours)
+    const isNewContact = (connectedAt: Date | any): boolean => {
+        const d = connectedAt?.toDate ? connectedAt.toDate() : new Date(connectedAt);
+        const oneDayAgo = new Date();
+        oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+        return d >= oneDayAgo;
+    };
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             <ScrollView
@@ -81,62 +135,63 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
             >
                 {/* Header */}
                 <View style={styles.header}>
-                    <View style={styles.greetingPill}>
-                        <Avatar
-                            source={userProfile?.photoURL}
-                            name={userProfile?.displayName}
-                            size="md"
-                        />
-                        <Text style={styles.greetingText}>
-                            Hi, <Text style={styles.userName}>{userProfile?.displayName?.split(' ')[0] || 'User'}!</Text>
+                    <View>
+                        <Text style={styles.welcomeText}>Welcome back,</Text>
+                        <Text style={styles.userName}>
+                            {userProfile?.displayName || 'User'}
                         </Text>
                     </View>
 
-                    <View style={styles.headerActions}>
-                        <TouchableOpacity
-                            style={styles.iconButton}
-                            onPress={() => navigation.navigate('Notifications')}
-                        >
-                            {pendingRequests.length > 0 && <View style={styles.notificationBadge} />}
-                            <Feather name="bell" size={24} color={colors.primary[600]} />
-                        </TouchableOpacity>
-                    </View>
+                    <TouchableOpacity
+                        style={styles.bellButton}
+                        onPress={() => navigation.navigate('Notifications')}
+                    >
+                        {pendingRequests.length > 0 && (
+                            <View style={styles.notificationBadge} />
+                        )}
+                        <Feather name="bell" size={22} color={colors.blue[500]} />
+                    </TouchableOpacity>
                 </View>
-
-                {/* Main Action Text */}
-                <Text style={styles.actionTitle}>Add a connection</Text>
 
                 {/* Quick Actions */}
-                <View style={styles.quickActions}>
-                    <TouchableOpacity
-                        style={[styles.actionCard, { backgroundColor: '#F9DCC4' }]} // Peach
-                        onPress={() => navigation.navigate('MyQR')}
-                        activeOpacity={0.8}
-                    >
-                        <View style={styles.actionIconContainer}>
-                            <MaterialCommunityIcons name="qrcode-scan" size={32} color={colors.primary[800]} />
-                        </View>
-                        <Text style={styles.actionLabel}>My QR Code</Text>
-                    </TouchableOpacity>
+                <QuickActionSection
+                    onShowQR={() => navigation.navigate('MyQR')}
+                    onScanQR={() => navigation.navigate('QRScanner')}
+                />
 
-                    <TouchableOpacity
-                        style={[styles.actionCard, { backgroundColor: '#F2A090' }]} // Salmon
-                        onPress={() => navigation.navigate('QRScanner')}
-                        activeOpacity={0.8}
-                    >
-                        <View style={styles.actionIconContainer}>
-                            <Feather name="camera" size={32} color={colors.primary[800]} />
-                        </View>
-                        <Text style={styles.actionLabel}>Scan QR Code</Text>
-                    </TouchableOpacity>
-                </View>
+                {/* Networking Snapshot */}
+                <NetworkingSnapshot
+                    newConnectionsCount={newConnectionsCount}
+                    pendingFollowUpsCount={
+                        needsAttentionItems.filter((i) => i.reason === 'Follow-up due').length
+                    }
+                    onViewDetails={() => navigation.navigate('Contacts')}
+                />
+
+                {/* Needs Attention */}
+                {needsAttentionItems.length > 0 && (
+                    <View style={styles.section}>
+                        <Text style={styles.sectionLabel}>NEEDS ATTENTION</Text>
+                        {needsAttentionItems.map((item) => (
+                            <NeedsAttentionCard
+                                key={item.id}
+                                initials={item.initials}
+                                name={item.name}
+                                reason={item.reason}
+                                onGenerate={() =>
+                                    navigation.navigate('AIFollowUp', { contactId: item.id })
+                                }
+                            />
+                        ))}
+                    </View>
+                )}
 
                 {/* Recent Connections */}
                 <View style={styles.section}>
                     <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>Recent Connections</Text>
                         <TouchableOpacity onPress={() => navigation.navigate('Contacts')}>
-                            <Text style={styles.seeAll}>See All</Text>
+                            <Text style={styles.viewAll}>View all</Text>
                         </TouchableOpacity>
                     </View>
 
@@ -145,35 +200,58 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
                             <TouchableOpacity
                                 key={contact.id}
                                 activeOpacity={0.7}
-                                onPress={() => navigation.navigate('ContactDetail', { contactId: contact.id })}
+                                onPress={() =>
+                                    navigation.navigate('ContactDetail', {
+                                        contactId: contact.id,
+                                    })
+                                }
+                                style={styles.contactCard}
                             >
-                                <View style={styles.contactItem}>
-                                    <View style={styles.avatarContainer}>
+                                <View style={styles.contactLeft}>
+                                    <View style={styles.avatarWrapper}>
                                         <Avatar
                                             source={contact.photoURL}
                                             name={contact.displayName}
                                             size="lg"
                                         />
+                                        {isNewContact(contact.connectedAt) && (
+                                            <View style={styles.newBadge}>
+                                                <Text style={styles.newBadgeText}>NEW</Text>
+                                            </View>
+                                        )}
                                     </View>
                                     <View style={styles.contactInfo}>
-                                        <Text style={styles.contactName}>{contact.displayName}</Text>
+                                        <Text style={styles.contactName}>
+                                            {contact.displayName}
+                                        </Text>
                                         <Text style={styles.contactRole} numberOfLines={1}>
                                             {contact.jobTitle}
-                                            {contact.company && ` At ${contact.company}`}
+                                            {contact.company && ` @ ${contact.company}`}
                                         </Text>
                                     </View>
                                 </View>
-                                <View style={styles.separator} />
+                                <View style={styles.contactRight}>
+                                    <Text style={styles.timeAgo}>
+                                        {getRelativeTime(contact.connectedAt)}
+                                    </Text>
+                                    <MaterialCommunityIcons
+                                        name="lightning-bolt"
+                                        size={18}
+                                        color={colors.blue[500]}
+                                    />
+                                </View>
                             </TouchableOpacity>
                         ))
                     ) : (
                         <View style={styles.emptyContainer}>
                             <Feather name="users" size={32} color={colors.neutral[300]} />
                             <Text style={styles.emptyText}>No recent connections</Text>
+                            <Text style={styles.emptySubtext}>
+                                Scan a QR code to get started!
+                            </Text>
                         </View>
                     )}
                 </View>
-
             </ScrollView>
         </SafeAreaView>
     );
@@ -182,7 +260,7 @@ export const HomeScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FAFAFA', // Very light gray background
+        backgroundColor: '#F9FAFB',
     },
     scrollView: {
         flex: 1,
@@ -192,137 +270,152 @@ const styles = StyleSheet.create({
         paddingTop: spacing.lg,
         paddingBottom: spacing['3xl'],
     },
+
+    // Header
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
+        alignItems: 'flex-start',
         marginBottom: spacing.xl,
     },
-    greetingPill: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#ECEBFA', // Light purple pill background
-        paddingVertical: spacing.xs,
-        paddingHorizontal: spacing.sm,
-        borderRadius: borderRadius.full,
-        gap: spacing.sm,
-    },
-    greetingText: {
-        fontSize: typography.fontSize.lg,
-        color: colors.primary[600],
-        marginRight: spacing.sm,
+    welcomeText: {
+        fontSize: typography.fontSize.sm,
+        color: colors.neutral[500],
+        marginBottom: 2,
     },
     userName: {
+        fontSize: typography.fontSize['2xl'],
         fontWeight: typography.fontWeight.bold,
-        color: colors.primary[600],
+        color: colors.neutral[900],
     },
-    headerActions: {
-        flexDirection: 'row',
+    bellButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
         alignItems: 'center',
-        gap: spacing.md,
-    },
-    iconButton: {
-        padding: spacing.xs,
+        justifyContent: 'center',
         position: 'relative',
+        marginTop: spacing.xs,
     },
     notificationBadge: {
         position: 'absolute',
-        top: 6,
-        right: 6,
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: '#EF4444', // Red dot
+        top: 8,
+        right: 8,
+        width: 9,
+        height: 9,
+        borderRadius: 5,
+        backgroundColor: '#EF4444',
         zIndex: 1,
         borderWidth: 1.5,
-        borderColor: '#FAFAFA',
+        borderColor: '#F9FAFB',
     },
-    actionTitle: {
-        fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.bold,
-        color: colors.text.primary,
-        marginBottom: spacing.md,
-    },
-    quickActions: {
-        flexDirection: 'row',
-        gap: spacing.md,
-        marginBottom: spacing['2xl'],
-    },
-    actionCard: {
-        flex: 1,
-        height: 160,
-        borderRadius: borderRadius.xl,
-        padding: spacing.lg,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    actionIconContainer: {
-        marginBottom: spacing.md,
-    },
-    actionLabel: {
-        fontSize: typography.fontSize.base,
-        fontWeight: typography.fontWeight.bold,
-        color: colors.primary[800],
-    },
+
+    // Sections
     section: {
         marginBottom: spacing.xl,
+    },
+    sectionLabel: {
+        fontSize: typography.fontSize.xs,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.neutral[400],
+        letterSpacing: 1,
+        marginBottom: spacing.md,
+        textTransform: 'uppercase',
     },
     sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: spacing.lg,
+        marginBottom: spacing.base,
     },
     sectionTitle: {
-        fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.bold, // Matches "Recent Connections"
-        color: colors.primary[600],
+        fontSize: typography.fontSize.xl,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.neutral[900],
     },
-    seeAll: {
-        fontSize: typography.fontSize.base,
-        color: '#F2A090', // Salmon color for "See All"
-        fontWeight: '500',
+    viewAll: {
+        fontSize: typography.fontSize.sm,
+        color: colors.blue[500],
+        fontWeight: typography.fontWeight.medium,
     },
-    contactItem: {
+
+    // Contact Card
+    contactCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: spacing.sm,
+        justifyContent: 'space-between',
+        backgroundColor: '#FFFFFF',
+        borderRadius: borderRadius.xl,
+        padding: spacing.base,
+        marginBottom: spacing.sm,
+        borderWidth: 1,
+        borderColor: '#F3F4F6',
     },
-    avatarContainer: {
+    contactLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    avatarWrapper: {
+        position: 'relative',
         marginRight: spacing.md,
-        borderWidth: 2,
-        borderColor: '#F2A090', // Salmon border around avatar
-        borderRadius: 999,
-        padding: 2,
+    },
+    newBadge: {
+        position: 'absolute',
+        bottom: -2,
+        left: -2,
+        backgroundColor: '#EF4444',
+        borderRadius: 6,
+        paddingHorizontal: 5,
+        paddingVertical: 1,
+        borderWidth: 1.5,
+        borderColor: '#FFFFFF',
+    },
+    newBadgeText: {
+        fontSize: 8,
+        fontWeight: typography.fontWeight.bold,
+        color: '#FFFFFF',
+        letterSpacing: 0.3,
     },
     contactInfo: {
         flex: 1,
         justifyContent: 'center',
     },
     contactName: {
-        fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.bold,
-        color: colors.primary[600],
+        fontSize: typography.fontSize.base,
+        fontWeight: typography.fontWeight.semibold,
+        color: colors.neutral[900],
         marginBottom: 2,
     },
     contactRole: {
         fontSize: typography.fontSize.sm,
-        color: '#9E97CA', // Light purple/grey text
-        fontWeight: '500',
+        color: colors.neutral[500],
     },
-    separator: {
-        height: 1,
-        backgroundColor: '#E5E7EB', // Light divider
-        marginLeft: 70, // Offset to align with text
-        marginVertical: spacing.xs,
+    contactRight: {
+        alignItems: 'flex-end',
+        gap: spacing.xs,
+        marginLeft: spacing.sm,
     },
+    timeAgo: {
+        fontSize: typography.fontSize.xs,
+        color: colors.neutral[400],
+    },
+
+    // Empty state
     emptyContainer: {
         alignItems: 'center',
-        padding: spacing.xl,
+        paddingVertical: spacing['2xl'],
     },
     emptyText: {
         marginTop: spacing.sm,
-        color: colors.text.secondary,
+        fontSize: typography.fontSize.base,
+        fontWeight: typography.fontWeight.medium,
+        color: colors.neutral[500],
+    },
+    emptySubtext: {
+        marginTop: spacing.xs,
+        fontSize: typography.fontSize.sm,
+        color: colors.neutral[400],
     },
 });
 

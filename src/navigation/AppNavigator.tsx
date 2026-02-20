@@ -1,18 +1,20 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
 import { View, ActivityIndicator } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from '../context/AuthContext';
 import { colors } from '../theme';
 import { RootStackParamList, MainTabParamList } from '../types';
 
 // Auth Screens
 import { LoginScreen, SignUpScreen, CreateProfileScreen } from '../screens/auth';
+import { SplashScreen, OnboardingScreen, ONBOARDING_DONE_KEY } from '../screens/onboarding';
 
 // Main Screens
-import { HomeScreen, ContactsScreen, MyQRScreen, ProfileScreen, EditProfileScreen, NotificationsScreen } from '../screens/main';
+import { HomeScreen, ContactsScreen, MyQRScreen, ProfileScreen, EditProfileScreen, NotificationsScreen, SettingsScreen, PrivacySecurityScreen, ChangePasswordScreen, LanguageScreen, AppearanceScreen, HelpSupportScreen, TermsOfServiceScreen, PrivacyPolicyScreen, AboutScreen } from '../screens/main';
 
 // Contact Screens
 import { ContactDetailScreen, AIFollowUpScreen } from '../screens/contacts';
@@ -29,7 +31,7 @@ const MainTabs = () => {
             detachInactiveScreens={false}
             screenOptions={{
                 headerShown: false,
-                tabBarActiveTintColor: colors.accent[500],
+                tabBarActiveTintColor: colors.blue[500],
                 tabBarInactiveTintColor: colors.text.tertiary,
                 tabBarStyle: {
                     backgroundColor: colors.background.primary,
@@ -86,22 +88,29 @@ const MainTabs = () => {
 };
 
 export const AppNavigator = () => {
-    const { user, userProfile, loading } = useAuth();
+    const { user, userProfile, loading, profileLoading } = useAuth();
+    const [onboardingDone, setOnboardingDone] = useState<boolean | null>(null);
 
-    if (loading) {
-        return (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background.primary }}>
-                <ActivityIndicator size="large" color={colors.primary[600]} />
-            </View>
-        );
+    useEffect(() => {
+        AsyncStorage.getItem(ONBOARDING_DONE_KEY).then((value: string | null) => {
+            setOnboardingDone(value === 'true');
+        });
+    }, []);
+
+    // Show splash while auth, profile, OR async-storage is loading
+    if (loading || profileLoading || onboardingDone === null) {
+        return <SplashScreen />;
     }
 
     return (
         <NavigationContainer>
             <Stack.Navigator screenOptions={{ headerShown: false }}>
                 {!user ? (
-                    // Auth Stack
+                    // Auth Stack — show onboarding only on first launch
                     <>
+                        {!onboardingDone && (
+                            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+                        )}
                         <Stack.Screen name="Login" component={LoginScreen} />
                         <Stack.Screen name="SignUp" component={SignUpScreen} />
                     </>
@@ -138,6 +147,51 @@ export const AppNavigator = () => {
                         <Stack.Screen
                             name="EditProfile"
                             component={EditProfileScreen}
+                            options={{ animation: 'slide_from_right' }}
+                        />
+                        <Stack.Screen
+                            name="Settings"
+                            component={SettingsScreen}
+                            options={{ animation: 'slide_from_right' }}
+                        />
+                        <Stack.Screen
+                            name="PrivacySecurity"
+                            component={PrivacySecurityScreen}
+                            options={{ animation: 'slide_from_right' }}
+                        />
+                        <Stack.Screen
+                            name="ChangePassword"
+                            component={ChangePasswordScreen}
+                            options={{ animation: 'slide_from_right' }}
+                        />
+                        <Stack.Screen
+                            name="Language"
+                            component={LanguageScreen}
+                            options={{ animation: 'slide_from_right' }}
+                        />
+                        <Stack.Screen
+                            name="Appearance"
+                            component={AppearanceScreen}
+                            options={{ animation: 'slide_from_right' }}
+                        />
+                        <Stack.Screen
+                            name="HelpSupport"
+                            component={HelpSupportScreen}
+                            options={{ animation: 'slide_from_right' }}
+                        />
+                        <Stack.Screen
+                            name="TermsOfService"
+                            component={TermsOfServiceScreen}
+                            options={{ animation: 'slide_from_right' }}
+                        />
+                        <Stack.Screen
+                            name="PrivacyPolicy"
+                            component={PrivacyPolicyScreen}
+                            options={{ animation: 'slide_from_right' }}
+                        />
+                        <Stack.Screen
+                            name="About"
+                            component={AboutScreen}
                             options={{ animation: 'slide_from_right' }}
                         />
                     </>
