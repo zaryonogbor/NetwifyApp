@@ -6,6 +6,7 @@ import {
     FlatList,
     TouchableOpacity,
     TextInput,
+    RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -22,6 +23,15 @@ export const ContactsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     const [searchQuery, setSearchQuery] = useState('');
     const [filteredContacts, setFilteredContacts] = useState<Contact[]>([]);
     const [searchFocused, setSearchFocused] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const onRefresh = () => {
+        setRefreshing(true);
+        // Simulate a network check/refresh by waiting a second
+        setTimeout(() => {
+            setRefreshing(false);
+        }, 1500);
+    };
 
     useEffect(() => {
         if (!user) return;
@@ -123,6 +133,9 @@ export const ContactsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
                 ListEmptyComponent={renderEmpty}
+                refreshControl={
+                    <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.blue[500]]} />
+                }
             />
         </SafeAreaView>
     );

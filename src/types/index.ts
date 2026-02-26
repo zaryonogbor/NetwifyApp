@@ -75,6 +75,10 @@ export interface QRCodeData {
     type: 'netwify_connect';
     userId: string;
     timestamp: number;
+    displayName?: string;
+    jobTitle?: string;
+    company?: string;
+    photoURL?: string;
 }
 
 // Navigation types

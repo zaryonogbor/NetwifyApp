@@ -3,4 +3,5 @@ export * from './Button';
 export * from './Card';
 export * from './CountryCodePicker';
 export * from './Input';
+export * from './NetworkBanner';
 export * from './SearchableDropdown';

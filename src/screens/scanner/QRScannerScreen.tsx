@@ -87,15 +87,35 @@ export const QRScannerScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                 return;
             }
 
-            const userDoc = await getDoc(doc(db, 'users', qrData.userId));
-            if (!userDoc.exists()) {
-                Alert.alert('User Not Found', 'This user profile does not exist.', [
+            let finalUser: Partial<UserProfile> | null = null;
+            try {
+                const userDoc = await getDoc(doc(db, 'users', qrData.userId));
+                if (userDoc.exists()) {
+                    finalUser = userDoc.data() as UserProfile;
+                }
+            } catch (e) {
+                console.log('Could not fetch user document online, trying offline data fallback.', e);
+            }
+
+            // Fallback to offline payload inside the QR code
+            if (!finalUser && qrData.displayName) {
+                finalUser = {
+                    uid: qrData.userId,
+                    displayName: qrData.displayName,
+                    jobTitle: qrData.jobTitle || 'Professional',
+                    company: qrData.company || '',
+                    photoURL: qrData.photoURL || '',
+                } as UserProfile;
+            }
+
+            if (!finalUser) {
+                Alert.alert('User Not Found', 'This user profile does not exist or cannot be verified offline.', [
                     { text: 'OK', onPress: () => setScanned(false) }
                 ]);
                 return;
             }
 
-            setScannedUser(userDoc.data() as UserProfile);
+            setScannedUser(finalUser as UserProfile);
         } catch (error) {
             console.error('Error parsing QR code:', error);
             Alert.alert('Invalid QR Code', 'Could not read this QR code.', [

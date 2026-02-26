@@ -9,6 +9,7 @@ import {
     Modal,
     SafeAreaView,
     Dimensions,
+    Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { colors, typography, spacing, borderRadius } from '../../theme';
@@ -73,7 +74,9 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
             <TouchableOpacity
                 style={[
                     styles.inputContainer,
-                    error ? { borderColor: colors.error } : { borderColor: colors.border.light }
+                    error ? { borderColor: colors.error } :
+                        isVisible ? { borderColor: colors.blue[500] } :
+                            { borderColor: colors.border.light }
                 ]}
                 onPress={() => setIsVisible(true)}
                 activeOpacity={0.7}
@@ -110,7 +113,10 @@ export const SearchableDropdown: React.FC<SearchableDropdownProps> = ({
                         <View style={styles.searchContainer}>
                             <Feather name="search" size={20} color={colors.text.tertiary} />
                             <TextInput
-                                style={styles.searchInput}
+                                style={[
+                                    styles.searchInput,
+                                    Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {}
+                                ]}
                                 placeholder="Search..."
                                 value={searchQuery}
                                 onChangeText={setSearchQuery}

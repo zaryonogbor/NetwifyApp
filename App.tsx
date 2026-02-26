@@ -6,6 +6,7 @@ import * as Font from 'expo-font';
 import { Feather } from '@expo/vector-icons';
 import { AuthProvider } from './src/context';
 import { AppNavigator } from './src/navigation';
+import { NetworkBanner } from './src/components/ui';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -45,6 +46,7 @@ export default function App() {
     <SafeAreaProvider onLayout={onLayoutRootView}>
       <AuthProvider>
         <StatusBar style="auto" />
+        <NetworkBanner />
         <AppNavigator />
       </AuthProvider>
     </SafeAreaProvider>

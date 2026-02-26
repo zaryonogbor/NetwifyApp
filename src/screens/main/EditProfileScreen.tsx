@@ -54,6 +54,15 @@ interface Props {
     navigation: EditProfileNavigationProp;
 }
 
+const FormSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
+    <View style={styles.section}>
+        <Text style={styles.sectionTitle}>{title}</Text>
+        <View style={styles.sectionCard}>
+            {children}
+        </View>
+    </View>
+);
+
 export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
     const { user, userProfile, refreshUserProfile } = useAuth();
 
@@ -215,15 +224,6 @@ export const EditProfileScreen: React.FC<Props> = ({ navigation }) => {
             setLoading(false);
         }
     };
-
-    const FormSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
-        <View style={styles.section}>
-            <Text style={styles.sectionTitle}>{title}</Text>
-            <View style={styles.sectionCard}>
-                {children}
-            </View>
-        </View>
-    );
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>

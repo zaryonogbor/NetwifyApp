@@ -14,6 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
+import { useNetInfo } from '@react-native-community/netinfo';
 import { db, functions } from '../../config/firebase';
 import { Card, Avatar, Button } from '../../components/ui';
 import { colors, typography, spacing, borderRadius, shadows } from '../../theme';
@@ -31,6 +32,8 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     const [isEditingNotes, setIsEditingNotes] = useState(false);
     const [loadingSummary, setLoadingSummary] = useState(false);
     const [isSummaryDisabled, setIsSummaryDisabled] = useState(false);
+    const netInfo = useNetInfo();
+    const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
 
     useEffect(() => {
         fetchContact();
@@ -193,8 +196,8 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                                 <View style={styles.aiHeaderActions}>
                                     <TouchableOpacity
                                         onPress={handleGenerateSummary}
-                                        disabled={loadingSummary}
-                                        style={styles.aiHeaderButton}
+                                        disabled={loadingSummary || isOffline}
+                                        style={[styles.aiHeaderButton, isOffline && { opacity: 0.5 }]}
                                     >
                                         <Feather name="refresh-cw" size={14} color={colors.primary[400]} />
                                     </TouchableOpacity>
@@ -216,8 +219,9 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                                     No AI summary yet. Insights will appear here once generated.
                                 </Text>
                                 <Button
-                                    title={loadingSummary ? 'Generating...' : 'Generate AI Summary'}
+                                    title={isOffline ? 'Offline' : loadingSummary ? 'Generating...' : 'Generate AI Summary'}
                                     onPress={handleGenerateSummary}
+                                    disabled={isOffline || loadingSummary}
                                     variant="secondary"
                                     size="sm"
                                     loading={loadingSummary}
@@ -251,12 +255,13 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                         Draft a personalized follow-up message instantly based on your meeting context.
                     </Text>
                     <Button
-                        title="Draft Follow-up Message"
+                        title={isOffline ? "Offline" : "Draft Follow-up Message"}
                         onPress={() => navigation.navigate('AIFollowUp', { contactId })}
+                        disabled={isOffline}
                         variant="outline"
                         size="sm"
                         style={styles.followUpButton}
-                        icon={<Feather name="edit-3" size={14} color={colors.primary[600]} />}
+                        icon={<Feather name="edit-3" size={14} color={isOffline ? colors.neutral[400] : colors.primary[600]} />}
                     />
                 </Card>
 

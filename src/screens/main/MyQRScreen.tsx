@@ -24,6 +24,10 @@ export const MyQRScreen: React.FC = () => {
         type: 'netwify_connect',
         userId: user?.uid || '',
         timestamp: Date.now(),
+        displayName: userProfile?.displayName,
+        jobTitle: userProfile?.jobTitle,
+        company: userProfile?.company,
+        photoURL: userProfile?.photoURL,
     };
 
     const handleShare = async () => {

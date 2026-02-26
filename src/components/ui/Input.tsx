@@ -6,6 +6,7 @@ import {
     StyleSheet,
     TextInputProps as RNTextInputProps,
     ViewStyle,
+    Platform,
 } from 'react-native';
 import { colors, typography, spacing, borderRadius } from '../../theme';
 
@@ -34,7 +35,7 @@ export const Input: React.FC<InputProps> = ({
 
     const getBorderColor = () => {
         if (error) return colors.error;
-        if (isFocused) return colors.primary[600];
+        if (isFocused) return colors.blue[500];
         return colors.border.light;
     };
 
@@ -59,6 +60,7 @@ export const Input: React.FC<InputProps> = ({
                         styles.input,
                         leftIcon ? { paddingLeft: 0 } : {},
                         rightIcon ? { paddingRight: 0 } : {},
+                        Platform.OS === 'web' ? { outlineStyle: 'none' } as any : {},
                         style,
                     ]}
                     placeholderTextColor={colors.text.tertiary}
