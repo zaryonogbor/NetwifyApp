@@ -26,8 +26,16 @@ export const acceptConnectionRequest = async (
     const currentUserDoc = await getDoc(doc(db, 'users', currentUserId));
     const currentUserProfile = currentUserDoc.data() as UserProfile;
 
+    // Helper to strip undefined values as Firestore throws errors for them
+    const cleanData = (obj: any) => {
+        return Object.entries(obj).reduce((acc, [k, v]) => {
+            if (v !== undefined) acc[k] = v;
+            return acc;
+        }, {} as any);
+    };
+
     // Create contact entry for current user (the accepter)
-    const contactForCurrentUser: Omit<Contact, 'id'> = {
+    const contactForCurrentUser = cleanData({
         userId: currentUserId,
         contactUserId: request.fromUserId,
         displayName: requesterProfile.displayName,
@@ -39,10 +47,10 @@ export const acceptConnectionRequest = async (
         linkedIn: requesterProfile.linkedIn,
         bio: requesterProfile.bio,
         connectedAt: new Date(),
-    };
+    });
 
     // Create contact entry for the requester
-    const contactForRequester: Omit<Contact, 'id'> = {
+    const contactForRequester = cleanData({
         userId: request.fromUserId,
         contactUserId: currentUserId,
         displayName: currentUserProfile.displayName,
@@ -54,7 +62,7 @@ export const acceptConnectionRequest = async (
         linkedIn: currentUserProfile.linkedIn,
         bio: currentUserProfile.bio,
         connectedAt: new Date(),
-    };
+    });
 
     // Add both contacts
     await addDoc(collection(db, 'contacts'), contactForCurrentUser);

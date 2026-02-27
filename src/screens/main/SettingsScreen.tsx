@@ -12,11 +12,14 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { doc, setDoc, addDoc, collection } from 'firebase/firestore';
+import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { colors, typography, spacing, borderRadius } from '../../theme';
+import { ConnectionRequest, UserProfile } from '../../types';
 
 export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-    const { signOut } = useAuth();
+    const { signOut, user } = useAuth();
     const [showSignOutModal, setShowSignOutModal] = useState(false);
 
     const handleSignOut = () => setShowSignOutModal(true);
@@ -28,6 +31,46 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
         } catch (error) {
             console.error('Error during sign out:', error);
             Alert.alert('Error', 'An error occurred during sign out. Please try again.');
+        }
+    };
+
+    const generateTestConnection = async () => {
+        if (!user) return;
+
+        try {
+            const dummyId = 'dummy_' + Date.now();
+
+            const dummyProfile: UserProfile = {
+                uid: dummyId,
+                email: 'jane.test@example.com',
+                displayName: 'Jane Smith (AI Tester)',
+                jobTitle: 'Senior Product Manager',
+                company: 'Innovatech Corp',
+                bio: 'Passionate about building scalable AI products and connecting with engineers.',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            };
+
+            await setDoc(doc(db, 'users', dummyId), dummyProfile);
+
+            const testRequest: Omit<ConnectionRequest, 'id'> = {
+                fromUserId: dummyId,
+                toUserId: user.uid,
+                fromUserProfile: {
+                    displayName: dummyProfile.displayName,
+                    jobTitle: dummyProfile.jobTitle,
+                    company: dummyProfile.company,
+                },
+                status: 'pending',
+                message: 'Hi there! I would love to test the AI summary features with you. I work on product at Innovatech.',
+                createdAt: new Date(),
+            };
+
+            await addDoc(collection(db, 'connectionRequests'), testRequest);
+            Alert.alert('Success!', 'Test connection injected. Check Notifications!');
+        } catch (error) {
+            console.error('Test connection error:', error);
+            Alert.alert('Error', 'Failed to generate test connection.');
         }
     };
 
@@ -154,6 +197,14 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                             label="About Netwify"
                             subtitle="v1.0.0"
                             onPress={() => navigation.navigate('About')}
+                        />
+                        <SettingsRow
+                            icon="cpu"
+                            label="Developer: Test AI Flow"
+                            subtitle="Generate incoming connection test"
+                            onPress={generateTestConnection}
+                            iconBg={colors.warning + '20'}
+                            iconColor={colors.warning}
                             isLast
                         />
                     </View>

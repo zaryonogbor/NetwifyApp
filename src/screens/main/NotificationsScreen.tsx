@@ -4,10 +4,12 @@ import {
     Text,
     StyleSheet,
     FlatList,
-    TouchableOpacity,
     Alert,
+    TouchableOpacity,
     RefreshControl,
     StatusBar,
+    ActivityIndicator,
+    Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -17,12 +19,10 @@ import {
     where,
     orderBy,
     onSnapshot,
-    doc,
-    updateDoc,
-    serverTimestamp,
 } from 'firebase/firestore';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../config/firebase';
+import { acceptConnectionRequest, declineConnectionRequest } from '../../services/connectionService';
 import { Avatar } from '../../components/ui';
 import { colors, typography, spacing, borderRadius } from '../../theme';
 import { ConnectionRequest } from '../../types';
@@ -50,6 +50,15 @@ export const NotificationsScreen: React.FC<{ navigation: any }> = ({ navigation 
     const [requests, setRequests] = useState<ConnectionRequest[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+    const showAlert = (title: string, message: string) => {
+        if (Platform.OS === 'web') {
+            window.alert(`${title}\n\n${message}`);
+        } else {
+            Alert.alert(title, message);
+        }
+    };
 
     useEffect(() => {
         if (!user) return;
@@ -83,30 +92,31 @@ export const NotificationsScreen: React.FC<{ navigation: any }> = ({ navigation 
     }, [user]);
 
     const handleAccept = async (request: ConnectionRequest) => {
+        if (!user) return;
+        setActionLoading(`accept_${request.id}`);
         try {
-            await updateDoc(doc(db, 'connectionRequests', request.id), {
-                status: 'accepted',
-                respondedAt: serverTimestamp(),
-            });
-            Alert.alert(
+            await acceptConnectionRequest(request, user.uid);
+            showAlert(
                 'Connected!',
                 `You are now connected with ${request.fromUserProfile.displayName}.`
             );
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error accepting request:', error);
-            Alert.alert('Error', 'Failed to accept connection request.');
+            showAlert('Error', `Failed to accept connection request. ${error.message || ''}`);
+        } finally {
+            setActionLoading(null);
         }
     };
 
     const handleDecline = async (requestId: string) => {
+        setActionLoading(`decline_${requestId}`);
         try {
-            await updateDoc(doc(db, 'connectionRequests', requestId), {
-                status: 'declined',
-                respondedAt: serverTimestamp(),
-            });
-        } catch (error) {
+            await declineConnectionRequest(requestId);
+        } catch (error: any) {
             console.error('Error declining request:', error);
-            Alert.alert('Error', 'Failed to decline connection request.');
+            showAlert('Error', `Failed to decline connection request. ${error.message || ''}`);
+        } finally {
+            setActionLoading(null);
         }
     };
 
@@ -145,20 +155,34 @@ export const NotificationsScreen: React.FC<{ navigation: any }> = ({ navigation 
             {/* Action Buttons */}
             <View style={styles.actions}>
                 <TouchableOpacity
-                    style={styles.declineButton}
+                    style={[styles.declineButton, { opacity: actionLoading ? 0.5 : 1 }]}
                     onPress={() => handleDecline(item.id)}
+                    disabled={actionLoading !== null}
                     activeOpacity={0.8}
                 >
-                    <Feather name="x" size={16} color={colors.neutral[500]} />
-                    <Text style={styles.declineText}>Decline</Text>
+                    {actionLoading === `decline_${item.id}` ? (
+                        <ActivityIndicator size="small" color={colors.neutral[500]} />
+                    ) : (
+                        <>
+                            <Feather name="x" size={16} color={colors.neutral[500]} />
+                            <Text style={styles.declineText}>Decline</Text>
+                        </>
+                    )}
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={styles.acceptButton}
+                    style={[styles.acceptButton, { opacity: actionLoading ? 0.5 : 1 }]}
                     onPress={() => handleAccept(item)}
+                    disabled={actionLoading !== null}
                     activeOpacity={0.85}
                 >
-                    <Feather name="check" size={16} color="#FFFFFF" />
-                    <Text style={styles.acceptText}>Accept</Text>
+                    {actionLoading === `accept_${item.id}` ? (
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                    ) : (
+                        <>
+                            <Feather name="check" size={16} color="#FFFFFF" />
+                            <Text style={styles.acceptText}>Accept</Text>
+                        </>
+                    )}
                 </TouchableOpacity>
             </View>
         </View>

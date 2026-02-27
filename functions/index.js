@@ -106,12 +106,12 @@ exports.generateFollowUp = functions.https.onCall(async (data, context) => {
 
     const contact = contactSnap.data();
     const userProfileSnap = await db.collection('users').doc(context.auth.uid).get();
-    const userProfile = userProfileSnap.data();
+    const userProfile = userProfileSnap.data() || {};
 
     const prompt = `
         Write a ${tone} follow-up message suitable for ${channel}. Keep it natural and professional.
-        From: ${userProfile.displayName} (${userProfile.jobTitle} at ${userProfile.company})
-        To: ${contact.displayName} (${contact.jobTitle} at ${contact.company})
+        From: ${userProfile.displayName || 'A Netwify User'} (${userProfile.jobTitle || 'Professional'} at ${userProfile.company || 'Their Company'})
+        To: ${contact.displayName || 'Recipient'} (${contact.jobTitle || ''} at ${contact.company || ''})
         Context/Summary: ${contact.aiSummary || 'Recently connected on Netwify.'}
     `;
 
