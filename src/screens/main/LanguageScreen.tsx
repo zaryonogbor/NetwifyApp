@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -7,10 +7,14 @@ import {
     StatusBar,
     FlatList,
     Image,
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, typography, spacing, borderRadius } from '../../theme';
+
+export const LANGUAGE_KEY = '@netwify_language';
 
 interface LanguageOption {
     id: string;
@@ -34,17 +38,40 @@ const languages: LanguageOption[] = [
 
 export const LanguageScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const [selectedLanguage, setSelectedLanguage] = useState('en');
+    const [saving, setSaving] = useState(false);
+
+    // Load saved language on mount
+    useEffect(() => {
+        AsyncStorage.getItem(LANGUAGE_KEY).then((val) => {
+            if (val) setSelectedLanguage(val);
+        });
+    }, []);
+
+    const handleSelect = async (id: string) => {
+        setSaving(true);
+        setSelectedLanguage(id);
+        try {
+            await AsyncStorage.setItem(LANGUAGE_KEY, id);
+            const selected = languages.find((l) => l.id === id);
+            Alert.alert(
+                'Language Updated',
+                `App language set to ${selected?.label}. Some changes may require a restart.`
+            );
+        } catch (error) {
+            Alert.alert('Error', 'Could not save language preference.');
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const renderItem = ({ item }: { item: LanguageOption }) => {
         const isSelected = selectedLanguage === item.id;
         return (
             <TouchableOpacity
-                style={[
-                    styles.languageRow,
-                    isSelected && styles.languageRowSelected,
-                ]}
-                onPress={() => setSelectedLanguage(item.id)}
+                style={[styles.languageRow, isSelected && styles.languageRowSelected]}
+                onPress={() => handleSelect(item.id)}
                 activeOpacity={0.7}
+                disabled={saving}
             >
                 <View style={styles.flagContainer}>
                     <Image
@@ -61,7 +88,7 @@ export const LanguageScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                 </View>
                 {isSelected ? (
                     <View style={styles.checkIcon}>
-                        <Feather name="check" size={20} color="#FFFFFF" />
+                        <Feather name="check" size={16} color="#FFFFFF" />
                     </View>
                 ) : (
                     <View style={styles.radioCircle} />
@@ -84,6 +111,14 @@ export const LanguageScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Language</Text>
                 <View style={styles.headerSpacer} />
+            </View>
+
+            {/* Info Banner */}
+            <View style={styles.infoBanner}>
+                <Feather name="globe" size={16} color={colors.blue[600]} />
+                <Text style={styles.infoBannerText}>
+                    Your selected language is saved and will be applied across the app. A restart may be needed for full effect.
+                </Text>
             </View>
 
             <View style={styles.content}>
@@ -127,13 +162,27 @@ const styles = StyleSheet.create({
         fontWeight: typography.fontWeight.bold,
         color: colors.neutral[900],
     },
-    headerSpacer: {
-        width: 40,
+    headerSpacer: { width: 40 },
+    infoBanner: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        backgroundColor: colors.blue[50],
+        borderRadius: borderRadius.xl,
+        padding: spacing.base,
+        marginHorizontal: spacing.lg,
+        marginBottom: spacing.md,
+        gap: spacing.sm,
+    },
+    infoBannerText: {
+        flex: 1,
+        fontSize: typography.fontSize.sm,
+        color: colors.blue[700],
+        lineHeight: 20,
+        fontWeight: typography.fontWeight.medium,
     },
     content: {
         flex: 1,
         paddingHorizontal: spacing.lg,
-        paddingTop: spacing.md,
     },
     sectionTitle: {
         fontSize: typography.fontSize.xs,
@@ -157,6 +206,7 @@ const styles = StyleSheet.create({
     },
     languageRowSelected: {
         borderColor: colors.blue[500],
+        borderWidth: 1.5,
         backgroundColor: colors.blue[50],
     },
     flagContainer: {
@@ -167,7 +217,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
         marginRight: spacing.md,
-        overflow: 'hidden', // Ensure rounded corners clip the image
+        overflow: 'hidden',
         borderWidth: 1,
         borderColor: '#E5E7EB',
     },
@@ -175,17 +225,13 @@ const styles = StyleSheet.create({
         width: '100%',
         height: '100%',
     },
-    textContainer: {
-        flex: 1,
-    },
+    textContainer: { flex: 1 },
     label: {
         fontSize: typography.fontSize.base,
         fontWeight: typography.fontWeight.semibold,
         color: colors.neutral[900],
     },
-    labelSelected: {
-        color: colors.blue[700],
-    },
+    labelSelected: { color: colors.blue[700] },
     nativeName: {
         fontSize: typography.fontSize.sm,
         color: colors.neutral[500],

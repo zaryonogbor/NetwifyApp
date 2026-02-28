@@ -11,10 +11,12 @@ import {
     StatusBar,
     Image,
     Dimensions,
+    Modal,
+    TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather, MaterialCommunityIcons } from '@expo/vector-icons';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { useNetInfo } from '@react-native-community/netinfo';
 import { db, functions } from '../../config/firebase';
@@ -37,6 +39,9 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
     const [isEditingNotes, setIsEditingNotes] = useState(false);
     const [loadingSummary, setLoadingSummary] = useState(false);
     const [isSummaryDisabled, setIsSummaryDisabled] = useState(false);
+    const [showOptions, setShowOptions] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const netInfo = useNetInfo();
     const isOffline = netInfo.isConnected === false || netInfo.isInternetReachable === false;
@@ -102,6 +107,25 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
         if (contact?.email) Linking.openURL(`mailto:${contact.email}`);
     };
 
+    const handleRemoveContact = () => {
+        setShowOptions(false);
+        setShowDeleteConfirm(true);
+    };
+
+    const confirmDeletion = async () => {
+        setIsDeleting(true);
+        try {
+            await deleteDoc(doc(db, 'contacts', contactId));
+            setShowDeleteConfirm(false);
+            navigation.goBack();
+        } catch (error) {
+            console.error('Error removing contact:', error);
+            Alert.alert('Error', 'Failed to remove contact. Please try again.');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
     const getInitials = (name?: string): string => {
         if (!name) return '?';
         const parts = name.trim().split(' ');
@@ -149,7 +173,11 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
                             <Feather name="chevron-left" size={22} color="rgba(255,255,255,0.9)" />
                         </TouchableOpacity>
                         <Text style={styles.heroNavTitle}>Contact</Text>
-                        <TouchableOpacity style={styles.navIconBtn} activeOpacity={0.8}>
+                        <TouchableOpacity
+                            style={styles.navIconBtn}
+                            onPress={() => setShowOptions(true)}
+                            activeOpacity={0.8}
+                        >
                             <Feather name="more-horizontal" size={22} color="rgba(255,255,255,0.9)" />
                         </TouchableOpacity>
                     </SafeAreaView>
@@ -424,6 +452,132 @@ export const ContactDetailScreen: React.FC<Props> = ({ navigation, route }) => {
 
                 <View style={{ height: spacing['4xl'] }} />
             </ScrollView>
+
+            {/* ── Options Modal ── */}
+            <Modal
+                visible={showOptions}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setShowOptions(false)}
+            >
+                <TouchableWithoutFeedback onPress={() => setShowOptions(false)}>
+                    <View style={styles.modalBackdrop}>
+                        <TouchableWithoutFeedback>
+                            <View style={styles.optionsSheet}>
+                                {/* Handle bar */}
+                                <View style={styles.sheetHandle} />
+
+                                {/* Contact name label */}
+                                <Text style={styles.sheetContactName}>{contact.displayName}</Text>
+                                <Text style={styles.sheetSubtitle}>Contact Options</Text>
+
+                                <View style={styles.sheetDivider} />
+
+                                {/* Share contact */}
+                                <TouchableOpacity
+                                    style={styles.sheetRow}
+                                    activeOpacity={0.7}
+                                    onPress={() => {
+                                        setShowOptions(false);
+                                        Alert.alert('Share', 'Share contact feature coming soon.');
+                                    }}
+                                >
+                                    <View style={[styles.sheetIconBox, { backgroundColor: colors.blue[50] }]}>
+                                        <Feather name="share-2" size={18} color={colors.blue[500]} />
+                                    </View>
+                                    <Text style={styles.sheetRowLabel}>Share Contact</Text>
+                                    <Feather name="chevron-right" size={18} color={colors.neutral[300]} />
+                                </TouchableOpacity>
+
+                                {/* AI Follow-up */}
+                                <TouchableOpacity
+                                    style={styles.sheetRow}
+                                    activeOpacity={0.7}
+                                    onPress={() => {
+                                        setShowOptions(false);
+                                        navigation.navigate('AIFollowUp', { contactId });
+                                    }}
+                                >
+                                    <View style={[styles.sheetIconBox, { backgroundColor: colors.secondary[100] }]}>
+                                        <MaterialCommunityIcons name="lightning-bolt" size={18} color={colors.secondary[600]} />
+                                    </View>
+                                    <Text style={styles.sheetRowLabel}>Draft AI Follow-up</Text>
+                                    <Feather name="chevron-right" size={18} color={colors.neutral[300]} />
+                                </TouchableOpacity>
+
+                                <View style={styles.sheetDivider} />
+
+                                {/* Remove contact — destructive */}
+                                <TouchableOpacity
+                                    style={styles.sheetRow}
+                                    activeOpacity={0.7}
+                                    onPress={handleRemoveContact}
+                                >
+                                    <View style={[styles.sheetIconBox, { backgroundColor: '#FEF2F2' }]}>
+                                        <Feather name="user-x" size={18} color="#EF4444" />
+                                    </View>
+                                    <Text style={[styles.sheetRowLabel, { color: '#EF4444' }]}>Remove Contact</Text>
+                                    <Feather name="chevron-right" size={18} color="#FCA5A5" />
+                                </TouchableOpacity>
+
+                                {/* Cancel */}
+                                <TouchableOpacity
+                                    style={styles.sheetCancelBtn}
+                                    onPress={() => setShowOptions(false)}
+                                    activeOpacity={0.8}
+                                >
+                                    <Text style={styles.sheetCancelText}>Cancel</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </TouchableWithoutFeedback>
+                    </View>
+                </TouchableWithoutFeedback>
+            </Modal>
+
+            {/* ── Deletion Confirmation Modal ── */}
+            <Modal
+                visible={showDeleteConfirm}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setShowDeleteConfirm(false)}
+            >
+                <View style={styles.modalBackdropCenter}>
+                    <View style={styles.confirmCard}>
+                        {/* Icon Badge */}
+                        <View style={styles.confirmIconBadge}>
+                            <Feather name="trash-2" size={28} color="#EF4444" />
+                        </View>
+
+                        {/* Text Content */}
+                        <Text style={styles.confirmTitle}>Remove Contact?</Text>
+                        <Text style={styles.confirmBody}>
+                            Are you sure you want to remove <Text style={{ fontWeight: 'bold', color: colors.neutral[900] }}>{contact.displayName}</Text>? This action will permanently delete this contact and cannot be undone.
+                        </Text>
+
+                        {/* Action Buttons */}
+                        <View style={styles.confirmActions}>
+                            <TouchableOpacity
+                                style={styles.confirmCancelBtn}
+                                onPress={() => setShowDeleteConfirm(false)}
+                                disabled={isDeleting}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.confirmCancelText}>Cancel</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.confirmDeleteBtn, isDeleting && { opacity: 0.7 }]}
+                                onPress={confirmDeletion}
+                                disabled={isDeleting}
+                                activeOpacity={0.85}
+                            >
+                                <Text style={styles.confirmDeleteText}>
+                                    {isDeleting ? 'Removing...' : 'Yes, Remove'}
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 };
@@ -928,6 +1082,163 @@ const styles = StyleSheet.create({
         fontSize: 12,
         fontWeight: typography.fontWeight.semibold,
         color: colors.blue[500],
+    },
+
+    // ── Options Modal ──
+    modalBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.45)',
+        justifyContent: 'flex-end',
+    },
+    optionsSheet: {
+        backgroundColor: colors.background.secondary,
+        borderTopLeftRadius: 28,
+        borderTopRightRadius: 28,
+        paddingHorizontal: spacing.lg,
+        paddingBottom: spacing['3xl'],
+        paddingTop: spacing.md,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
+        elevation: 16,
+    },
+    sheetHandle: {
+        width: 40,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: colors.neutral[200],
+        alignSelf: 'center',
+        marginBottom: spacing.lg,
+    },
+    sheetContactName: {
+        fontSize: typography.fontSize.lg,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.neutral[900],
+        textAlign: 'center',
+        marginBottom: 2,
+    },
+    sheetSubtitle: {
+        fontSize: typography.fontSize.sm,
+        color: colors.neutral[400],
+        textAlign: 'center',
+        marginBottom: spacing.md,
+    },
+    sheetDivider: {
+        height: 1,
+        backgroundColor: colors.border.light,
+        marginVertical: spacing.sm,
+    },
+    sheetRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: spacing.base,
+        gap: spacing.md,
+    },
+    sheetIconBox: {
+        width: 42,
+        height: 42,
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    sheetRowLabel: {
+        flex: 1,
+        fontSize: typography.fontSize.base,
+        fontWeight: typography.fontWeight.medium,
+        color: colors.neutral[800],
+    },
+    sheetCancelBtn: {
+        marginTop: spacing.md,
+        backgroundColor: colors.neutral[100],
+        borderRadius: borderRadius.xl,
+        paddingVertical: spacing.base,
+        alignItems: 'center',
+    },
+    sheetCancelText: {
+        fontSize: typography.fontSize.base,
+        fontWeight: typography.fontWeight.semibold,
+        color: colors.neutral[600],
+    },
+
+    // ── Confirmation Modal ──
+    modalBackdropCenter: {
+        flex: 1,
+        backgroundColor: 'rgba(0,0,0,0.5)',
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: spacing.xl,
+    },
+    confirmCard: {
+        width: '100%',
+        maxWidth: 400,
+        backgroundColor: colors.background.secondary,
+        borderRadius: borderRadius['2xl'],
+        padding: spacing.xl,
+        alignItems: 'center',
+        ...shadows.lg,
+    },
+    confirmIconBadge: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: '#FEF2F2',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: spacing.lg,
+        borderWidth: 1.5,
+        borderColor: '#FECACA',
+    },
+    confirmTitle: {
+        fontSize: typography.fontSize.xl,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.neutral[900],
+        marginBottom: spacing.sm,
+        textAlign: 'center',
+    },
+    confirmBody: {
+        fontSize: typography.fontSize.sm,
+        color: colors.neutral[500],
+        textAlign: 'center',
+        lineHeight: 22,
+        marginBottom: spacing.xl,
+        paddingHorizontal: spacing.sm,
+    },
+    confirmActions: {
+        flexDirection: 'row',
+        gap: spacing.md,
+        width: '100%',
+    },
+    confirmCancelBtn: {
+        flex: 1,
+        paddingVertical: spacing.base,
+        backgroundColor: colors.background.primary,
+        borderRadius: borderRadius.xl,
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: colors.border.light,
+    },
+    confirmCancelText: {
+        fontSize: typography.fontSize.base,
+        fontWeight: typography.fontWeight.semibold,
+        color: colors.neutral[700],
+    },
+    confirmDeleteBtn: {
+        flex: 1,
+        paddingVertical: spacing.base,
+        backgroundColor: '#EF4444',
+        borderRadius: borderRadius.xl,
+        alignItems: 'center',
+        shadowColor: '#EF4444',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 4,
+    },
+    confirmDeleteText: {
+        fontSize: typography.fontSize.base,
+        fontWeight: typography.fontWeight.bold,
+        color: '#FFFFFF',
     },
 });
 

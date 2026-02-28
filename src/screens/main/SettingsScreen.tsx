@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import {
     View,
     Text,
@@ -12,15 +12,43 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { doc, setDoc, addDoc, collection } from 'firebase/firestore';
 import { db } from '../../config/firebase';
 import { useAuth } from '../../context/AuthContext';
 import { colors, typography, spacing, borderRadius } from '../../theme';
 import { ConnectionRequest, UserProfile } from '../../types';
 
+const LANGUAGE_KEY = '@netwify_language';
+const APPEARANCE_KEY = '@netwify_appearance';
+
+const languageLabels: Record<string, string> = {
+    en: 'English', es: 'Spanish', fr: 'French', de: 'German',
+    it: 'Italian', pt: 'Portuguese', zh: 'Chinese', ja: 'Japanese',
+    ru: 'Russian', ar: 'Arabic',
+};
+const appearanceLabels: Record<string, string> = {
+    light: 'Light', dark: 'Dark', system: 'System Default',
+};
+
 export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
     const { signOut, user } = useAuth();
     const [showSignOutModal, setShowSignOutModal] = useState(false);
+    const [languageLabel, setLanguageLabel] = useState('English');
+    const [appearanceLabel, setAppearanceLabel] = useState('Light');
+
+    // Reload labels every time the screen comes into focus
+    useFocusEffect(
+        useCallback(() => {
+            AsyncStorage.getItem(LANGUAGE_KEY).then((val) => {
+                if (val) setLanguageLabel(languageLabels[val] ?? 'English');
+            });
+            AsyncStorage.getItem(APPEARANCE_KEY).then((val) => {
+                if (val) setAppearanceLabel(appearanceLabels[val] ?? 'Light');
+            });
+        }, [])
+    );
 
     const handleSignOut = () => setShowSignOutModal(true);
 
@@ -160,13 +188,13 @@ export const SettingsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                         <SettingsRow
                             icon="globe"
                             label="Language"
-                            subtitle="English"
+                            subtitle={languageLabel}
                             onPress={() => navigation.navigate('Language')}
                         />
                         <SettingsRow
                             icon="moon"
                             label="Appearance"
-                            subtitle="Light"
+                            subtitle={appearanceLabel}
                             onPress={() => navigation.navigate('Appearance')}
                             isLast
                         />
